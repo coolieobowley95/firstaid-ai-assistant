@@ -1,0 +1,1989 @@
+
+++++++App.css
+////////////////////////////////////
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background-color: #f5f7fa;
+}
+
+/* ===== HEADER ===== */
+.top-header {
+  position: fixed;
+  top: 0;
+  width: 100%;
+  height: 60px;
+  background: white;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 25px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+  z-index: 1000;
+}
+
+.logo {
+  font-size: 1.4rem;
+  font-weight: bold;
+  color: #1976d2;
+}
+
+.top-actions button {
+  margin-left: 10px;
+  padding: 8px 14px;
+  border: none;
+  background: #1976d2;
+  color: white;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.top-actions button:hover {
+  background: #115293;
+}
+
+.top-underline {
+  position: fixed;
+  top: 60px;
+  width: 100%;
+  height: 2px;
+  background-color: #e0e0e0;
+  z-index: 999;
+}
+
+/* ===== HERO BACKGROUND ===== */
+.hero {
+  position: relative;
+  background-image: url('./assets/background.png');
+  background-size: cover;
+  background-position: center;
+  min-height: 100vh;
+
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+
+  padding-top: 120px;
+}
+
+.hero::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0.35);
+  z-index: 0;
+}
+
+.hero * {
+  position: relative;
+  z-index: 1;
+}
+
+/* ===== MAIN CARD ===== */
+.main-card {
+  background: rgba(255,255,255,0.95);
+  padding: 35px;
+  border-radius: 15px;
+  box-shadow: 0 8px 30px rgba(0,0,0,0.25);
+  max-width: 700px;
+  width: 100%;
+  text-align: center;
+}
+
+.primary-btn, .analyze-btn, .button-group button {
+  padding: 12px 20px;
+  margin-top: 10px;
+  font-size: 1rem;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  background: #e53935;
+  color: white;
+}
+
+.analyze-btn {
+  background: #28a745;
+}
+
+.button-group {
+  display: flex;
+  gap: 15px;
+  justify-content: center;
+}
+
+/* ===== IMAGE PREVIEW ===== */
+.image-preview img {
+  margin-top: 15px;
+  max-width: 300px;
+  border-radius: 8px;
+  border: 2px solid #1976d2;
+}
+
+/* ===== RESULT PANEL ===== */
+.result-card {
+  margin-top: 25px;
+  background: white;
+  padding: 25px;
+  border-radius: 12px;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.15);
+  text-align: left;
+}
+
+.injury-badge {
+  display: inline-block;
+  background: #d32f2f;
+  color: white;
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-weight: bold;
+  margin: 10px 0;
+}
+
+.steps-list {
+  list-style: none;
+  padding: 0;
+}
+
+.steps-list li {
+  background: #f1f8ff;
+  padding: 10px;
+  margin-bottom: 8px;
+  border-left: 4px solid #1976d2;
+  border-radius: 5px;
+}
+
+.warning {
+  background: #fff3cd;
+  color: #856404;
+  padding: 12px;
+  border-radius: 6px;
+  margin-top: 15px;
+}
+
+.emergency-btn {
+  margin-top: 15px;
+  background: #d32f2f;
+  color: white;
+  border: none;
+  padding: 12px;
+  width: 100%;
+  font-size: 1rem;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.emergency-btn:hover {
+  background: #b71c1c;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
++++++App.jsx
+//////////////////////////////////////////
+import { useState, useRef } from "react";
+import { FaCamera } from "react-icons/fa";
+import "./App.css";
+
+// ======== Login Component ========
+function Login({ onLogin }) {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (!email || !password) {
+      alert("Please enter email and password");
+      return;
+    }
+    onLogin();
+  };
+
+  return (
+    <div className="login-container">
+      <h2>Sign in to your account</h2>
+      <form onSubmit={handleSubmit} className="login-form">
+        <input type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} />
+        <input type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} />
+        <button type="submit">Sign In</button>
+      </form>
+    </div>
+  );
+}
+
+// ======== Main FirstAid App ========
+function FirstAidApp({ onSignOut }) {
+  const [showGuide, setShowGuide] = useState(false);
+  const [showDetectionOptions, setShowDetectionOptions] = useState(false);
+  const [selectedImage, setSelectedImage] = useState(null);
+  const [capturedImage, setCapturedImage] = useState(null);
+  const [analysisResult, setAnalysisResult] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [showCamera, setShowCamera] = useState(false);
+
+  const fileInputRef = useRef(null);
+  const videoRef = useRef(null);
+  const canvasRef = useRef(null);
+
+  const handleFileClick = () => fileInputRef.current.click();
+
+  const handleFileChange = (event) => {
+    const file = event.target.files[0];
+    if (file) {
+      setSelectedImage(file);
+      setCapturedImage(null);
+      setAnalysisResult(null);
+    }
+  };
+
+  const handleUseCamera = async () => {
+    setShowCamera(true);
+    setSelectedImage(null);
+    setCapturedImage(null);
+    setAnalysisResult(null);
+
+    const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+    videoRef.current.srcObject = stream;
+    videoRef.current.play();
+  };
+
+  const handleCapture = () => {
+    const context = canvasRef.current.getContext("2d");
+    context.drawImage(videoRef.current, 0, 0, 400, 300);
+    const dataUrl = canvasRef.current.toDataURL("image/png");
+    setCapturedImage(dataUrl);
+    setShowCamera(false);
+
+    const stream = videoRef.current.srcObject;
+    stream.getTracks().forEach((track) => track.stop());
+  };
+
+  const handleAnalyzeClick = async () => {
+    const imageFile = selectedImage;
+    const imageData = capturedImage;
+
+    if (!imageFile && !imageData) {
+      alert("Please select or capture an image first!");
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      let base64Image;
+
+      if (imageFile) {
+        base64Image = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result.split(",")[1]);
+          reader.onerror = reject;
+          reader.readAsDataURL(imageFile);
+        });
+      } else {
+        base64Image = imageData.split(",")[1];
+      }
+
+      const response = await fetch("http://localhost:5000/api/analyze", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ imageBase64: base64Image }),
+      });
+
+      const result = await response.json();
+      setAnalysisResult(result);
+
+    } catch (err) {
+      console.error(err);
+      alert("Failed to analyze image.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleFindHospital = () => {
+    navigator.geolocation.getCurrentPosition(({ coords }) => {
+      const url = `https://www.google.com/maps/search/hospital/@${coords.latitude},${coords.longitude},15z`;
+      window.open(url, "_blank");
+    });
+  };
+
+  return (
+    <>
+      {/* ===== HEADER ===== */}
+      <div className="top-header">
+        <div className="logo">🩺 FirstAid.AI</div>
+        <div className="top-actions">
+          <button onClick={handleFindHospital}>Find Hospital</button>
+          <button onClick={onSignOut}>Sign Out</button>
+        </div>
+      </div>
+      <div className="top-underline"></div>
+
+      {/* ===== HERO ===== */}
+      <section className="hero">
+        <div className="main-card">
+          <h1>Welcome to FirstAid.AI</h1>
+          <p>Your intelligent first aid assistant</p>
+
+          {!showDetectionOptions && (
+            <button className="primary-btn" onClick={() => setShowDetectionOptions(true)}>
+              <FaCamera style={{ marginRight: "8px" }} /> Injury Detection
+            </button>
+          )}
+
+          {showDetectionOptions && (
+            <div className="button-group">
+              <button onClick={handleFileClick}>Upload Image</button>
+              <button onClick={handleUseCamera}>Use Camera</button>
+            </div>
+          )}
+
+          <input type="file" accept="image/*" ref={fileInputRef} onChange={handleFileChange} hidden />
+
+          {showCamera && (
+            <div className="camera-preview">
+              <video ref={videoRef} width="400" height="300" />
+              <button onClick={handleCapture}>Capture</button>
+              <canvas ref={canvasRef} width="400" height="300" hidden />
+            </div>
+          )}
+
+          {(selectedImage || capturedImage) && (
+            <button className="analyze-btn" onClick={handleAnalyzeClick} disabled={loading}>
+              {loading ? "Analyzing..." : "Analyze"}
+            </button>
+          )}
+
+          {(selectedImage || capturedImage) && (
+            <div className="image-preview">
+              <img src={selectedImage ? URL.createObjectURL(selectedImage) : capturedImage} alt="preview" />
+            </div>
+          )}
+
+          {/* ===== RESULT PANEL ===== */}
+          {analysisResult && (
+            <div className="result-card">
+              <h2>🩻 Injury Detected</h2>
+
+              <div className="injury-badge">{analysisResult.injury}</div>
+
+              <div className="confidence">
+                Confidence: <strong>{analysisResult.confidence}</strong>
+              </div>
+
+              <h3>🩹 First Aid Steps</h3>
+              <ul className="steps-list">
+                {analysisResult.steps.map((step, index) => (
+                  <li key={index}>Step {index + 1}: {step}</li>
+                ))}
+              </ul>
+
+              <div className="warning">
+                ⚠️ {analysisResult.disclaimer}
+              </div>
+
+              <button className="emergency-btn" onClick={() => window.location.href = "tel:911"}>
+                🚑 Call Emergency
+              </button>
+            </div>
+          )}
+        </div>
+      </section>
+    </>
+  );
+}
+
+// ===== Wrapper =====
+export default function App() {
+  const [isLoggedIn, setIsLoggedIn] = useState(true);
+
+  return isLoggedIn ? <FirstAidApp onSignOut={() => setIsLoggedIn(false)} /> : <Login onLogin={() => setIsLoggedIn(true)} />;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Original App.jsx
+////////////////////////////
+import backgroundImage from "./assets/background.png";
+import { useState, useRef } from "react";
+import { FaCamera } from "react-icons/fa";
+import "./App.css";
+
+// ======== Login Component ========
+function Login({ onLogin }) {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (!email || !password) {
+      alert("Please enter email and password");
+      return;
+    }
+    onLogin();
+  };
+
+  return (
+    <div className="login-container">
+      <h2>Sign in to your account</h2>
+      <form onSubmit={handleSubmit} className="login-form">
+        <label>Email address</label>
+        <input
+          type="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          className="login-input"
+        />
+
+        <label>Password</label>
+        <input
+          type="password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          className="login-input"
+        />
+
+        <button type="submit" className="login-btn">Sign In</button>
+      </form>
+      <p>Don't have an account? <a href="#">Sign up</a></p>
+    </div>
+  );
+}
+
+// ======== FirstAid AI App Component ========
+function FirstAidApp({ onSignOut }) {
+  const [showGuide, setShowGuide] = useState(false);
+  const [showDetectionOptions, setShowDetectionOptions] = useState(false);
+  const [selectedImage, setSelectedImage] = useState(null);
+  const [capturedImage, setCapturedImage] = useState(null);
+  const [analysisResult, setAnalysisResult] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [showCamera, setShowCamera] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [openSection, setOpenSection] = useState(null);
+
+  const fileInputRef = useRef(null);
+  const videoRef = useRef(null);
+  const canvasRef = useRef(null);
+
+  // ======== Full First Aid Guide (Accordion) ========
+  const guideTopics = [
+    { title: "Cuts and Wounds", items: ["Clean your hands thoroughly with soap and water", "Rinse the wound gently with clean water", "Apply antibiotic ointment if available", "Cover with a sterile bandage", "For severe bleeding: apply direct pressure and seek emergency care"] },
+    { title: "Burns", items: ["Cool the burn under cool (not cold) running water for 10–20 minutes", "Do not apply ice directly to the skin", "Cover loosely with sterile gauze", "Seek medical care for large or blistering burns"] },
+    { title: "CPR and Breathing", items: ["Check responsiveness and breathing", "Call emergency services immediately", "Begin chest compressions at a rate of 100–120 per minute", "Provide rescue breaths if trained"] },
+    { title: "Choking", items: ["Encourage coughing if the person can still breathe", "Perform abdominal thrusts (Heimlich maneuver) if trained", "Call emergency services if the object cannot be removed"] },
+    { title: "Fractures and Sprains", items: ["Immobilize the injured area", "Apply ice to reduce swelling", "Do not attempt to realign broken bones", "Seek medical evaluation promptly"] },
+    { title: "Head Injuries", items: ["Keep the person still and calm", "Monitor for confusion, vomiting, or loss of consciousness", "Seek emergency care for severe symptoms"] },
+    { title: "Poisoning", items: ["Call poison control or emergency services immediately", "Do not induce vomiting unless instructed", "Keep the substance container for identification"] },
+    { title: "Heat-Related Emergencies", items: ["Move the person to a cool area", "Loosen tight clothing and provide fluids", "Seek emergency help for heat stroke"] },
+    { title: "Cold-Related Emergencies", items: ["Warm the person gradually", "Remove wet clothing", "Seek medical help for frostbite or hypothermia"] },
+    { title: "Allergic Reactions", items: ["Remove the allergen if possible", "Administer antihistamines or epinephrine if prescribed", "Call emergency services for breathing difficulty"] },
+    { title: "Eye Injuries", items: ["Rinse the eye gently with clean water", "Do not rub or apply pressure", "Seek urgent medical care for chemical or penetrating injuries"] },
+    { title: "Seizures", items: ["Protect the person from injury", "Do not restrain or place objects in the mouth", "Call emergency services if seizure lasts more than 5 minutes"] },
+    { title: "Dental Emergencies", items: ["Rinse the mouth with warm water", "Preserve knocked-out teeth in milk or saline", "Seek a dentist immediately"] },
+    { title: "Stings and Bites", items: ["Remove the stinger if present", "Wash with soap and water", "Apply cold compress and monitor for allergic reactions"] },
+    { title: "Drowning / Near-Drowning", items: ["Remove from water if safe to do so", "Check breathing and circulation", "Begin CPR if necessary", "Call emergency services immediately"] }
+  ];
+
+  // ======== Image Upload / Camera ========
+  const handleInjuryDetectionClick = () => {
+    setShowDetectionOptions(true);
+    setSelectedImage(null);
+    setCapturedImage(null);
+    setAnalysisResult("");
+  };
+
+  const handleFileClick = () => fileInputRef.current.click();
+
+  const handleFileChange = (event) => {
+    const file = event.target.files[0];
+    if (file) {
+      setSelectedImage(file);
+      setCapturedImage(null);
+      setAnalysisResult("");
+    }
+  };
+
+  const handleUseCamera = async () => {
+    setShowCamera(true);
+    setSelectedImage(null);
+    setCapturedImage(null);
+    setAnalysisResult("");
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      videoRef.current.srcObject = stream;
+      videoRef.current.play();
+    } catch (err) {
+      alert("Cannot access camera");
+    }
+  };
+
+  const handleCapture = () => {
+    const context = canvasRef.current.getContext("2d");
+    context.drawImage(videoRef.current, 0, 0, 400, 300);
+    const dataUrl = canvasRef.current.toDataURL("image/png");
+    setCapturedImage(dataUrl);
+    setShowCamera(false);
+
+    const stream = videoRef.current.srcObject;
+    stream.getTracks().forEach((track) => track.stop());
+  };
+
+  // ======== New handleAnalyzeClick for Gemini ========
+  const handleAnalyzeClick = async () => {
+    const imageFile = selectedImage;
+    const imageData = capturedImage;
+
+    if (!imageFile && !imageData) {
+      alert("Please select or capture an image first!");
+      return;
+    }
+
+    setLoading(true);
+    setAnalysisResult("AI analyzing...");
+
+    try {
+      let base64Image;
+
+      // Convert uploaded file to Base64
+      if (imageFile) {
+        base64Image = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result.split(",")[1]);
+          reader.onerror = reject;
+          reader.readAsDataURL(imageFile);
+        });
+      } else {
+        // Captured image from canvas is already Base64
+        base64Image = imageData.split(",")[1];
+      }
+
+      // POST to backend Gemini endpoint
+      const response = await fetch("http://localhost:5000/api/analyze", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ imageBase64: base64Image }),
+      });
+
+      const result = await response.json();
+
+      // Format steps
+      const stepsText = result.steps.map(step => `- ${step}`).join("\n");
+
+      // Display structured result
+      const resultText = `
+Injury Type: ${result.injury}
+Confidence: ${result.confidence}
+
+First Aid Steps:
+${stepsText}
+
+Disclaimer: ${result.disclaimer}
+      `.trim();
+
+      setAnalysisResult(resultText);
+
+    } catch (err) {
+      console.error("Error analyzing image:", err);
+      setAnalysisResult("Failed to analyze image. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ======== Find Hospital ========
+  const handleFindHospital = () => {
+    if (!navigator.geolocation) return alert("Geolocation not supported");
+
+    navigator.geolocation.getCurrentPosition(({ coords }) => {
+      const url = `https://www.google.com/maps/search/hospital/@${coords.latitude},${coords.longitude},15z`;
+      window.open(url, "_blank");
+    });
+  };
+
+  const filterGuide = (title) => title.toLowerCase().includes(searchQuery.toLowerCase());
+
+  return (
+    <>
+      <div className="top-right-buttons">
+        <button className="guide-top-btn" onClick={() => setShowGuide(true)}>First Aid Guide</button>
+        <button className="hospital-btn" onClick={handleFindHospital}>Find Hospital</button>
+        <button className="signout-btn" onClick={onSignOut}>Sign Out</button>
+      </div>
+
+      <section className="hero">
+        <h1>Welcome to FirstAid.AI</h1>
+        <p>Your intelligent first aid assistant for emergency situations</p>
+
+        {!showDetectionOptions && (
+          <button className="primary-btn" onClick={handleInjuryDetectionClick}>
+            <FaCamera style={{ marginRight: "8px" }} /> Injury Detection
+          </button>
+        )}
+
+        {showDetectionOptions && (
+          <div className="button-group">
+            <button className="primary-btn" onClick={handleFileClick}>Upload from File Explorer</button>
+            <button className="primary-btn" onClick={handleUseCamera}>Use Camera</button>
+          </div>
+        )}
+
+        <input
+          type="file"
+          accept="image/*"
+          ref={fileInputRef}
+          onChange={handleFileChange}
+          style={{ display: "none" }}
+        />
+
+        {showCamera && (
+          <div className="camera-preview">
+            <video ref={videoRef} width="400" height="300" />
+            <button onClick={handleCapture}>Capture Photo</button>
+            <canvas ref={canvasRef} width="400" height="300" style={{ display: "none" }} />
+          </div>
+        )}
+
+        {(selectedImage || capturedImage) && (
+          <button className="analyze-btn" onClick={handleAnalyzeClick} disabled={loading}>
+            {loading ? "Analyzing..." : "Analyze"}
+          </button>
+        )}
+
+        {(selectedImage || capturedImage) && (
+          <div className="image-preview">
+            <h3>Selected Image:</h3>
+            <img
+              src={selectedImage ? URL.createObjectURL(selectedImage) : capturedImage}
+              alt="Selected Injury"
+            />
+          </div>
+        )}
+
+        {analysisResult && (
+          <div className="analysis-result">
+            <pre>{analysisResult}</pre>
+          </div>
+        )}
+      </section>
+
+      {/* Guide Modal with Accordion */}
+      {showGuide && (
+        <div className="guide-modal">
+          <div className="guide-content">
+            <button className="close-btn" onClick={() => setShowGuide(false)}>×</button>
+            <h1>First Aid Guide</h1>
+
+            <input
+              type="text"
+              placeholder="Search first aid topics..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="guide-search"
+            />
+
+            {guideTopics
+              .filter((topic) => filterGuide(topic.title))
+              .map((topic, index) => (
+                <div key={index} className="accordion-item">
+                  <h2
+                    className="accordion-title"
+                    onClick={() => setOpenSection(openSection === index ? null : index)}
+                  >
+                    {topic.title}
+                  </h2>
+
+                  {openSection === index && (
+                    <ul className="accordion-content">
+                      {topic.items.map((step, i) => (
+                        <li key={i}>{step}</li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              ))}
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+// ======== Main App Wrapper ========
+function App() {
+  const [isLoggedIn, setIsLoggedIn] = useState(true);
+
+  return (
+    <>
+      {!isLoggedIn ? (
+        <Login onLogin={() => setIsLoggedIn(true)} />
+      ) : (
+        <FirstAidApp onSignOut={() => setIsLoggedIn(false)} />
+      )}
+    </>
+  );
+}
+
+export default App;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Original  App.css
+///////////////////////////////////
+body {
+  background-color: #f5f7fa;
+  margin: 0;
+  font-family: Arial, sans-serif;
+  text-align: center;
+}
+
+/* Top-right buttons wrapper */
+.top-right-buttons {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  display: flex;
+  gap: 10px;
+  z-index: 1000;
+}
+
+/* Buttons */
+.guide-top-btn,
+.hospital-btn {
+  padding: 10px 15px;
+  font-size: 14px;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.guide-top-btn {
+  background-color: #007bff;
+  color: white;
+}
+
+.guide-top-btn:hover {
+  background-color: #0056b3;
+}
+
+.hospital-btn {
+  background-color: #28a745;
+  color: white;
+}
+
+.hospital-btn:hover {
+  background-color: #1e7e34;
+}
+
+/* Hero Section */
+.hero {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 20px;
+  padding: 20px;
+}
+
+.hero h1 {
+  font-size: 2.6rem;
+}
+
+.hero p {
+  font-size: 1.2rem;
+  color: #555;
+  max-width: 600px;
+}
+
+.button-group {
+  display: flex;
+  gap: 15px;
+  margin-top: 10px;
+}
+
+.primary-btn,
+.analyze-btn {
+  padding: 12px 24px;
+  font-size: 1rem;
+  cursor: pointer;
+  border-radius: 4px;
+  border: none;
+}
+
+.primary-btn {
+  background-color: #e53935;
+  color: white;
+}
+
+.primary-btn:hover {
+  background-color: #c62828;
+}
+
+.analyze-btn {
+  background-color: #28a745;
+  color: white;
+}
+
+.analyze-btn:hover {
+  background-color: #1e7e34;
+}
+
+/* Image preview */
+.image-preview img {
+  margin-top: 10px;
+  max-width: 300px;
+  border-radius: 6px;
+  border: 2px solid #1976d2;
+}
+
+/* Analysis result */
+.analysis-result {
+  margin-top: 20px;
+  background: #f8f9fa;
+  padding: 15px;
+  border-radius: 8px;
+  max-width: 600px;
+  margin-left: auto;
+  margin-right: auto;
+  text-align: left;
+}
+
+/* Loader */
+.loader {
+  border: 6px solid #f3f3f3;
+  border-top: 6px solid #28a745;
+  border-radius: 50%;
+  width: 50px;
+  height: 50px;
+  animation: spin 1s linear infinite;
+  margin-top: 20px;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Guide Modal */
+.guide-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0,0,0,0.7);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  overflow-y: auto;
+  padding: 20px;
+  z-index: 1000;
+}
+
+.guide-content {
+  background: white;
+  max-width: 800px;
+  width: 100%;
+  padding: 30px;
+  border-radius: 10px;
+  text-align: left;
+  position: relative;
+}
+
+/* Close Button */
+.close-btn {
+  position: sticky;
+  top: 0;
+  right: 0;
+  float: right;
+  font-size: 2rem;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #e53935;
+  margin-bottom: 10px;
+  z-index: 1001;
+}
+
+
+.guide-search {
+  width: 100%;
+  padding: 10px;
+  margin-bottom: 20px;
+  font-size: 1rem;
+  border-radius: 5px;
+  border: 1px solid #ccc;
+}
+
+.login-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  background-color: #f5f7fa;
+  text-align: center;
+}
+
+.login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  background: white;
+  padding: 30px;
+  border-radius: 10px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.login-form input {
+  padding: 10px;
+  font-size: 1rem;
+  border-radius: 5px;
+  border: 1px solid #ccc;
+}
+
+.login-form button {
+  padding: 12px;
+  font-size: 1rem;
+  border: none;
+  border-radius: 6px;
+  background-color: #1976d2;
+  color: white;
+  cursor: pointer;
+}
+
+.login-form button:hover {
+  background-color: #115293;
+}
+
+.login-container a {
+  color: #1976d2;
+  text-decoration: none;
+}
+
+.login-container {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  gap: 10px;
+}
+
+.login-container input {
+  padding: 10px;
+  margin: 5px 0;
+  width: 250px;
+  font-size: 1rem;
+}
+
+.login-container button {
+  padding: 10px 20px;
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+.toggle-link {
+  color: blue;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.error {
+  color: red;
+}
+
+.top-right-container {
+  display: flex;
+  justify-content: flex-end;
+  padding: 10px 20px;
+  border-bottom: 2px solid #ccc; /* line under buttons */
+  margin-bottom: 20px;
+}
+
+.top-right-buttons button {
+  margin-left: 10px;
+}
+
+/* Top-right container and underline */
+.top-right-container {
+  display: flex;
+  flex-direction: column; /* buttons above line */
+  align-items: flex-end;  /* buttons aligned to right */
+  padding: 10px 20px;
+  margin-bottom: 20px;
+}
+
+.top-right-buttons button {
+  margin-left: 10px;
+}
+
+/* Full-width line under buttons */
+.top-right-underline {
+  width: 100%;
+  height: 2px;
+  background-color: #ccc;
+  margin-top: 5px;
+}
+
+/* Top-right buttons container */
+.top-right-container {
+  display: flex;
+  justify-content: flex-end; /* buttons on right */
+  padding: 10px 20px;
+  position: fixed;  /* keeps it at top */
+  top: 0;
+  left: 0;
+  width: 100%;
+  background-color: #fff; /* header background */
+  z-index: 1000;
+}
+
+/* Buttons spacing */
+.top-right-buttons button {
+  margin-left: 10px;
+}
+
+/* Full-width line under header buttons */
+.top-right-underline {
+  width: 100%;
+  height: 2px;
+  background-color: #ccc;
+  position: fixed;
+  top: 50px; /* adjust to be just under buttons */
+  left: 0;
+  z-index: 999;
+}
+
+/* ===== Fixed Top Header ===== */
+.top-header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  background-color: #fff;
+  z-index: 1000;
+  padding: 10px 20px;
+}
+
+/* Buttons aligned right */
+.top-right-buttons {
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* Buttons spacing */
+.top-right-buttons button {
+  margin-left: 10px;
+}
+
+/* Full-width line under header */
+.top-underline {
+  width: 100%;
+  height: 2px;
+  background-color: #ccc;
+  margin-top: 5px;
+  z-index: 999;
+}
+
+.hero {
+  background-image: url('./assets/background.png'); /* PNG instead of JPG */
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  width: 100%;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  text-align: center;
+  padding: 20px;
+  position: relative;
+  z-index: 0;
+}
+
+.hero::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5); /* overlay for text readability */
+  z-index: 0;
+}
+
+.hero * {
+  position: relative;
+  z-index: 1;
+}
+
+.hero {
+  position: relative;
+  background-image: url('./assets/background.png');
+  background-size: cover;
+  background-position: center;
+  filter: brightness(1.2); /* brighten image */
+  width: 100%;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 20px;
+  z-index: 0;
+}
+
+.hero::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(255, 255, 255, 0.2); /* optional extra brighten overlay */
+  z-index: 0;
+}
+
+.hero * {
+  position: relative;
+  z-index: 1;
+}
+
+.hero h1,
+.hero p {
+  color: #007bff; /* blue text */
+}
+
+.hero {
+  position: relative;
+  background-image: url('./assets/background.png');
+  background-size: cover;
+  background-position: center;
+  filter: brightness(1.1); /* slightly brighter, not too harsh */
+  width: 100%;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 20px;
+  z-index: 0;
+}
+
+.hero::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(255, 255, 255, 0.1); /* subtle bright overlay */
+  z-index: 0;
+}
+
+.hero * {
+  position: relative;
+  z-index: 1;
+}
+
+.hero h1,
+.hero p {
+  color: #007bff; /* blue text */
+}
+
+.hero {
+  position: relative;
+  background-image: url('./assets/background.png');
+  background-size: cover;
+  background-position: center;
+  filter: brightness(1.05); /* barely brighter than original */
+  width: 100%;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 20px;
+  z-index: 0;
+}
+
+.hero::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(255, 255, 255, 0.05); /* very subtle overlay */
+  z-index: 0;
+}
+
+.hero * {
+  position: relative;
+  z-index: 1;
+}
+
+.hero h1,
+.hero p {
+  color: #007bff; /* blue text */
+}
+
+/*
+,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+/*
+
+
+/*  you want the background just slightly dulled by 5%, */
+.hero {
+  position: relative;
+  background-image: url('./assets/background.png');
+  background-size: cover;
+  background-position: center;
+  filter: brightness(0.97); /* 3% darker (very subtle) */
+  width: 100%;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 20px;
+  z-index: 0;
+}
+
+.hero::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.03); /* very very subtle overlay */
+  z-index: 0;
+}
+
+.hero * {
+  position: relative;
+  z-index: 1;
+}
+
+.hero h1,
+.hero p {
+  color: #007bff; /* blue text */
+}
+
+.hero {
+  position: relative;
+  background-image: url('./assets/background.png');
+  background-size: cover;
+  background-position: center;
+  filter: brightness(1.05); /* 5% brighter */
+  width: 100%;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 20px;
+  z-index: 0;
+}
+
+.hero::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(255, 255, 255, 0.05); /* very subtle bright overlay */
+  z-index: 0;
+}
+
+.hero * {
+  position: relative;
+  z-index: 1;
+}
+
+.hero h1,
+.hero p {
+  color: #007bff; /* blue text */
+}
+
+.analysis-result pre {
+  color: red;           /* text color red */
+  font-family: inherit; /* keeps default font */
+  white-space: pre-wrap; /* preserves line breaks */
+  background-color: rgba(255,255,255,0.1); /* optional subtle background */
+  padding: 10px;
+  border-radius: 5px;
+}
+
+.hero h1 {
+  margin-bottom: 5px; /* reduces space below title */
+  font-size: 2.5rem;  /* adjust as needed */
+}
+
+.hero p {
+  margin-top: 0;       /* remove default top margin */
+  font-size: 1.2rem;  /* optional size tweak */
+}
+
+
+.hero {
+  position: relative;
+  background-image: url('./assets/background.png');
+  background-size: cover;
+  background-position: center;
+  filter: brightness(1.05);
+  width: 100%;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+
+  justify-content: flex-start;   /* move content toward the top */
+  padding-top: 120px;            /* space from the top line */
+
+  text-align: center;
+  padding-left: 20px;
+  padding-right: 20px;
+  z-index: 0;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+import { useState, useRef } from "react";
+import { FaCamera, FaUpload, FaSignOutAlt, FaBookMedical, FaHospital } from "react-icons/fa";
+import "./App.css";
+
+// ---------------- LOGIN COMPONENT ----------------
+function Login({ onLogin }) {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    // Simple demo login (no real auth)
+    if (email && password) {
+      onLogin();
+    } else {
+      alert("Enter email and password");
+    }
+  };
+
+  return (
+    <div className="login-container">
+      <h1>FirstAid.AI</h1>
+      <p>Your intelligent first aid assistant</p>
+
+      <form onSubmit={handleSubmit} className="login-form">
+        <input
+          type="email"
+          placeholder="Email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+        />
+        <input
+          type="password"
+          placeholder="Password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+        />
+        <button type="submit">Login</button>
+      </form>
+    </div>
+  );
+}
+
+// ---------------- MAIN APP COMPONENT ----------------
+function FirstAidApp({ onSignOut }) {
+  const [selectedImage, setSelectedImage] = useState(null);
+  const [result, setResult] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const fileInputRef = useRef(null);
+
+  const handleUpload = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setSelectedImage(file);
+      setResult(null);
+    }
+  };
+
+  const handleAnalyze = async () => {
+    if (!selectedImage) {
+      alert("Please upload or capture an image first");
+      return;
+    }
+
+    setLoading(true);
+
+    const formData = new FormData();
+    formData.append("image", selectedImage);
+
+    try {
+      const res = await fetch("http://localhost:5000/analyze", {
+        method: "POST",
+        body: formData,
+      });
+
+      const data = await res.json();
+      setResult(data);
+    } catch (err) {
+      console.error(err);
+      alert("Backend error – using mock response");
+    }
+
+    setLoading(false);
+  };
+
+  return (
+    <div className="app-container">
+      {/* TOP NAV BAR */}
+      <div className="top-bar">
+        <h2>FirstAid.AI</h2>
+        <div className="nav-buttons">
+          <button><FaBookMedical /> First Aid Guide</button>
+          <button><FaHospital /> Find Hospital</button>
+          <button onClick={onSignOut}><FaSignOutAlt /> Sign Out</button>
+        </div>
+      </div>
+
+      {/* MAIN CONTENT */}
+      <div className="main-card">
+        <h1>Injury Detection</h1>
+        <p>Upload or capture an image to analyze the injury</p>
+
+        <div className="upload-section">
+          <input
+            type="file"
+            accept="image/*"
+            ref={fileInputRef}
+            onChange={handleUpload}
+            hidden
+          />
+
+          <button onClick={() => fileInputRef.current.click()}>
+            <FaUpload /> Upload Image
+          </button>
+
+          <button onClick={() => fileInputRef.current.click()}>
+            <FaCamera /> Use Camera
+          </button>
+        </div>
+
+        {selectedImage && (
+          <div className="preview">
+            <img src={URL.createObjectURL(selectedImage)} alt="preview" />
+          </div>
+        )}
+
+        <button className="analyze-btn" onClick={handleAnalyze} disabled={loading}>
+          {loading ? "Analyzing..." : "Analyze"}
+        </button>
+
+        {result && (
+          <div className="result-card">
+            <h3>Injury Type: {result.injury}</h3>
+            <p><strong>Confidence:</strong> {result.confidence}%</p>
+
+            <h4>First Aid Steps:</h4>
+            <ul>
+              {result.steps.map((step, index) => (
+                <li key={index}>{step}</li>
+              ))}
+            </ul>
+
+            {result.mock && (
+              <p className="mock-warning">⚠ Using mock response (Gemini not connected)</p>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ---------------- ROOT APP ----------------
+export default function App() {
+  const [isLoggedIn, setIsLoggedIn] = useState(true);
+
+  return isLoggedIn ? (
+    <FirstAidApp onSignOut={() => setIsLoggedIn(false)} />
+  ) : (
+    <Login onLogin={() => setIsLoggedIn(true)} />
+  );
+}
+
+
+
+
+
+
+
+
+-----------------------------------------------------------------
+import backgroundImage from "./assets/background.png";
+import { useState, useRef } from "react";
+import { FaCamera } from "react-icons/fa";
+import "./App.css";
+
+// ======== Login Component ========
+function Login({ onLogin }) {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (!email || !password) {
+      alert("Please enter email and password");
+      return;
+    }
+    onLogin();
+  };
+
+  return (
+    <div className="login-container">
+      <h2>Sign in to your account</h2>
+      <form onSubmit={handleSubmit} className="login-form">
+        <label>Email address</label>
+        <input
+          type="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          className="login-input"
+        />
+
+        <label>Password</label>
+        <input
+          type="password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          className="login-input"
+        />
+
+        <button type="submit" className="login-btn">Sign In</button>
+      </form>
+      <p>Don't have an account? <a href="#">Sign up</a></p>
+    </div>
+  );
+}
+
+// ======== FirstAid AI App Component ========
+function FirstAidApp({ onSignOut }) {
+  const [showGuide, setShowGuide] = useState(false);
+  const [showDetectionOptions, setShowDetectionOptions] = useState(false);
+  const [selectedImage, setSelectedImage] = useState(null);
+  const [capturedImage, setCapturedImage] = useState(null);
+  const [analysisResult, setAnalysisResult] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [showCamera, setShowCamera] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [openSection, setOpenSection] = useState(null);
+
+  const fileInputRef = useRef(null);
+  const videoRef = useRef(null);
+  const canvasRef = useRef(null);
+
+  // ======== Full First Aid Guide (Accordion) ========
+  const guideTopics = [
+    { title: "Cuts and Wounds", items: ["Clean your hands thoroughly with soap and water", "Rinse the wound gently with clean water", "Apply antibiotic ointment if available", "Cover with a sterile bandage", "For severe bleeding: apply direct pressure and seek emergency care"] },
+    { title: "Burns", items: ["Cool the burn under cool (not cold) running water for 10–20 minutes", "Do not apply ice directly to the skin", "Cover loosely with sterile gauze", "Seek medical care for large or blistering burns"] },
+    { title: "CPR and Breathing", items: ["Check responsiveness and breathing", "Call emergency services immediately", "Begin chest compressions at a rate of 100–120 per minute", "Provide rescue breaths if trained"] },
+    { title: "Choking", items: ["Encourage coughing if the person can still breathe", "Perform abdominal thrusts (Heimlich maneuver) if trained", "Call emergency services if the object cannot be removed"] },
+    { title: "Fractures and Sprains", items: ["Immobilize the injured area", "Apply ice to reduce swelling", "Do not attempt to realign broken bones", "Seek medical evaluation promptly"] },
+    { title: "Head Injuries", items: ["Keep the person still and calm", "Monitor for confusion, vomiting, or loss of consciousness", "Seek emergency care for severe symptoms"] },
+    { title: "Poisoning", items: ["Call poison control or emergency services immediately", "Do not induce vomiting unless instructed", "Keep the substance container for identification"] },
+    { title: "Heat-Related Emergencies", items: ["Move the person to a cool area", "Loosen tight clothing and provide fluids", "Seek emergency help for heat stroke"] },
+    { title: "Cold-Related Emergencies", items: ["Warm the person gradually", "Remove wet clothing", "Seek medical help for frostbite or hypothermia"] },
+    { title: "Allergic Reactions", items: ["Remove the allergen if possible", "Administer antihistamines or epinephrine if prescribed", "Call emergency services for breathing difficulty"] },
+    { title: "Eye Injuries", items: ["Rinse the eye gently with clean water", "Do not rub or apply pressure", "Seek urgent medical care for chemical or penetrating injuries"] },
+    { title: "Seizures", items: ["Protect the person from injury", "Do not restrain or place objects in the mouth", "Call emergency services if seizure lasts more than 5 minutes"] },
+    { title: "Dental Emergencies", items: ["Rinse the mouth with warm water", "Preserve knocked-out teeth in milk or saline", "Seek a dentist immediately"] },
+    { title: "Stings and Bites", items: ["Remove the stinger if present", "Wash with soap and water", "Apply cold compress and monitor for allergic reactions"] },
+    { title: "Drowning / Near-Drowning", items: ["Remove from water if safe to do so", "Check breathing and circulation", "Begin CPR if necessary", "Call emergency services immediately"] }
+  ];
+
+  // ======== Image Upload / Camera ========
+  const handleInjuryDetectionClick = () => {
+    setShowDetectionOptions(true);
+    setSelectedImage(null);
+    setCapturedImage(null);
+    setAnalysisResult("");
+  };
+
+  const handleFileClick = () => fileInputRef.current.click();
+
+  const handleFileChange = (event) => {
+    const file = event.target.files[0];
+    if (file) {
+      setSelectedImage(file);
+      setCapturedImage(null);
+      setAnalysisResult("");
+    }
+  };
+
+  const handleUseCamera = async () => {
+    setShowCamera(true);
+    setSelectedImage(null);
+    setCapturedImage(null);
+    setAnalysisResult("");
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      videoRef.current.srcObject = stream;
+      videoRef.current.play();
+    } catch (err) {
+      alert("Cannot access camera");
+    }
+  };
+
+  const handleCapture = () => {
+    const context = canvasRef.current.getContext("2d");
+    context.drawImage(videoRef.current, 0, 0, 400, 300);
+    const dataUrl = canvasRef.current.toDataURL("image/png");
+    setCapturedImage(dataUrl);
+    setShowCamera(false);
+
+    const stream = videoRef.current.srcObject;
+    stream.getTracks().forEach((track) => track.stop());
+  };
+
+  // ======== New handleAnalyzeClick for Gemini ========
+  const handleAnalyzeClick = async () => {
+    const imageFile = selectedImage;
+    const imageData = capturedImage;
+
+    if (!imageFile && !imageData) {
+      alert("Please select or capture an image first!");
+      return;
+    }
+
+    setLoading(true);
+    setAnalysisResult("AI analyzing...");
+
+    try {
+      let base64Image;
+
+      // Convert uploaded file to Base64
+      if (imageFile) {
+        base64Image = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result.split(",")[1]);
+          reader.onerror = reject;
+          reader.readAsDataURL(imageFile);
+        });
+      } else {
+        // Captured image from canvas is already Base64
+        base64Image = imageData.split(",")[1];
+      }
+
+      // POST to backend Gemini endpoint
+      const response = await fetch("http://localhost:5000/api/analyze", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ imageBase64: base64Image }),
+      });
+
+      const result = await response.json();
+
+      // Format steps
+      const stepsText = result.steps.map(step => `- ${step}`).join("\n");
+
+      // Display structured result
+      const resultText = `
+Injury Type: ${result.injury}
+Confidence: ${result.confidence}
+
+First Aid Steps:
+${stepsText}
+
+Disclaimer: ${result.disclaimer}
+      `.trim();
+
+      setAnalysisResult(resultText);
+
+    } catch (err) {
+      console.error("Error analyzing image:", err);
+      setAnalysisResult("Failed to analyze image. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ======== Find Hospital ========
+  const handleFindHospital = () => {
+    if (!navigator.geolocation) return alert("Geolocation not supported");
+
+    navigator.geolocation.getCurrentPosition(({ coords }) => {
+      const url = `https://www.google.com/maps/search/hospital/@${coords.latitude},${coords.longitude},15z`;
+      window.open(url, "_blank");
+    });
+  };
+
+  const filterGuide = (title) => title.toLowerCase().includes(searchQuery.toLowerCase());
+
+  return (
+    <>
+      <div className="top-right-buttons">
+        <button className="guide-top-btn" onClick={() => setShowGuide(true)}>First Aid Guide</button>
+        <button className="hospital-btn" onClick={handleFindHospital}>Find Hospital</button>
+        <button className="signout-btn" onClick={onSignOut}>Sign Out</button>
+      </div>
+
+      <section className="hero">
+        <h1>Welcome to FirstAid.AI</h1>
+        <p>Your intelligent first aid assistant for emergency situations</p>
+
+        {!showDetectionOptions && (
+          <button className="primary-btn" onClick={handleInjuryDetectionClick}>
+            <FaCamera style={{ marginRight: "8px" }} /> Injury Detection
+          </button>
+        )}
+
+        {showDetectionOptions && (
+          <div className="button-group">
+            <button className="primary-btn" onClick={handleFileClick}>Upload from File Explorer</button>
+            <button className="primary-btn" onClick={handleUseCamera}>Use Camera</button>
+          </div>
+        )}
+
+        <input
+          type="file"
+          accept="image/*"
+          ref={fileInputRef}
+          onChange={handleFileChange}
+          style={{ display: "none" }}
+        />
+
+        {showCamera && (
+          <div className="camera-preview">
+            <video ref={videoRef} width="400" height="300" />
+            <button onClick={handleCapture}>Capture Photo</button>
+            <canvas ref={canvasRef} width="400" height="300" style={{ display: "none" }} />
+          </div>
+        )}
+
+        {(selectedImage || capturedImage) && (
+          <button className="analyze-btn" onClick={handleAnalyzeClick} disabled={loading}>
+            {loading ? "Analyzing..." : "Analyze"}
+          </button>
+        )}
+
+        {(selectedImage || capturedImage) && (
+          <div className="image-preview">
+            <h3>Selected Image:</h3>
+            <img
+              src={selectedImage ? URL.createObjectURL(selectedImage) : capturedImage}
+              alt="Selected Injury"
+            />
+          </div>
+        )}
+
+        {analysisResult && (
+          <div className="analysis-result">
+            <pre>{analysisResult}</pre>
+          </div>
+        )}
+      </section>
+
+      {/* Guide Modal with Accordion */}
+      {showGuide && (
+        <div className="guide-modal">
+          <div className="guide-content">
+            <button className="close-btn" onClick={() => setShowGuide(false)}>×</button>
+            <h1>First Aid Guide</h1>
+
+            <input
+              type="text"
+              placeholder="Search first aid topics..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="guide-search"
+            />
+
+            {guideTopics
+              .filter((topic) => filterGuide(topic.title))
+              .map((topic, index) => (
+                <div key={index} className="accordion-item">
+                  <h2
+                    className="accordion-title"
+                    onClick={() => setOpenSection(openSection === index ? null : index)}
+                  >
+                    {topic.title}
+                  </h2>
+
+                  {openSection === index && (
+                    <ul className="accordion-content">
+                      {topic.items.map((step, i) => (
+                        <li key={i}>{step}</li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              ))}
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+// ======== Main App Wrapper ========
+function App() {
+  const [isLoggedIn, setIsLoggedIn] = useState(true);
+
+  return (
+    <>
+      {!isLoggedIn ? (
+        <Login onLogin={() => setIsLoggedIn(true)} />
+      ) : (
+        <FirstAidApp onSignOut={() => setIsLoggedIn(false)} />
+      )}
+    </>
+  );
+}
+
+export default App;

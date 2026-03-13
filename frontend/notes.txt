@@ -1,0 +1,1122 @@
+GEMINI_API_KEY=AIzaSyDBOZYJsTau1ltxqOKarvlzC6mO7xpBHv0
+PORT=5000
+
+
+
+https://console.cloud.google.com/iam-admin/serviceaccounts/details/117419304265852693029/keys?project=gen-lang-client-0230443883
+
+
+Email address: api-tester@project-d2a76b7d-4c7e-4f37-ad0.iam.gserviceaccount.com 
+api-tester@project-d2a76b7d-4c7e-4f37-ad0.iam.gserviceaccount.com
+
+https://console.cloud.google.com/iam-admin/serviceaccounts?project=project-d2a76b7d-4c7e-4f37-ad0
+
+
+..
+App.jsx file based with mulip results
+/////////////////////////////////////
+import backgroundImage from "./assets/background.png";
+import { useState, useRef } from "react";
+import { FaCamera } from "react-icons/fa";
+import "./App.css";
+
+// ======== Login Component ========
+function Login({ onLogin }) {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (!email || !password) {
+      alert("Please enter email and password");
+      return;
+    }
+    onLogin();
+  };
+
+  return (
+    <div className="login-container">
+      <h2>Sign in to your account</h2>
+      <form onSubmit={handleSubmit} className="login-form">
+        <label>Email address</label>
+        <input
+          type="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          className="login-input"
+        />
+
+        <label>Password</label>
+        <input
+          type="password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          className="login-input"
+        />
+
+        <button type="submit" className="login-btn">Sign In</button>
+      </form>
+      <p>Don't have an account? <a href="#">Sign up</a></p>
+    </div>
+  );
+}
+
+// ======== FirstAid AI App Component ========
+function FirstAidApp({ onSignOut }) {
+  const [showGuide, setShowGuide] = useState(false);
+  const [showDetectionOptions, setShowDetectionOptions] = useState(false);
+  const [selectedImage, setSelectedImage] = useState(null);
+  const [capturedImage, setCapturedImage] = useState(null);
+  const [analysisResult, setAnalysisResult] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [showCamera, setShowCamera] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [openSection, setOpenSection] = useState(null);
+
+  const fileInputRef = useRef(null);
+  const videoRef = useRef(null);
+  const canvasRef = useRef(null);
+
+  // ======== Demo Diagnoses ========
+  const demoDiagnoses = [
+    { injury: "Minor Cut", confidence: "85%", steps: ["Wash hands thoroughly", "Clean the wound with water", "Apply antibiotic ointment", "Cover with a sterile bandage"] },
+    { injury: "Burn", confidence: "90%", steps: ["Cool under running water for 20 minutes", "Do not apply ice directly", "Cover with sterile gauze", "Seek medical help if severe"] },
+    { injury: "Bruise", confidence: "75%", steps: ["Apply ice for 15 minutes", "Rest the injured area", "Keep area elevated"] },
+    { injury: "Deep Wound", confidence: "95%", steps: ["Apply direct pressure to stop bleeding", "Keep the area elevated", "Do not remove embedded objects", "Call emergency services immediately"] },
+    { injury: "Sprain", confidence: "80%", steps: ["Rest the injured joint", "Apply ice for 20 minutes", "Wrap with compression bandage", "Keep limb elevated"] }
+  ];
+
+  // ======== Full First Aid Guide (Accordion) ========
+  const guideTopics = [
+    { title: "Cuts and Wounds", items: ["Clean your hands thoroughly with soap and water", "Rinse the wound gently with clean water", "Apply antibiotic ointment if available", "Cover with a sterile bandage", "For severe bleeding: apply direct pressure and seek emergency care"] },
+    { title: "Burns", items: ["Cool the burn under cool (not cold) running water for 10–20 minutes", "Do not apply ice directly to the skin", "Cover loosely with sterile gauze", "Seek medical care for large or blistering burns"] },
+    { title: "CPR and Breathing", items: ["Check responsiveness and breathing", "Call emergency services immediately", "Begin chest compressions at a rate of 100–120 per minute", "Provide rescue breaths if trained"] },
+    { title: "Choking", items: ["Encourage coughing if the person can still breathe", "Perform abdominal thrusts (Heimlich maneuver) if trained", "Call emergency services if the object cannot be removed"] },
+    { title: "Fractures and Sprains", items: ["Immobilize the injured area", "Apply ice to reduce swelling", "Do not attempt to realign broken bones", "Seek medical evaluation promptly"] },
+    { title: "Head Injuries", items: ["Keep the person still and calm", "Monitor for confusion, vomiting, or loss of consciousness", "Seek emergency care for severe symptoms"] },
+    { title: "Poisoning", items: ["Call poison control or emergency services immediately", "Do not induce vomiting unless instructed", "Keep the substance container for identification"] },
+    { title: "Heat-Related Emergencies", items: ["Move the person to a cool area", "Loosen tight clothing and provide fluids", "Seek emergency help for heat stroke"] },
+    { title: "Cold-Related Emergencies", items: ["Warm the person gradually", "Remove wet clothing", "Seek medical help for frostbite or hypothermia"] },
+    { title: "Allergic Reactions", items: ["Remove the allergen if possible", "Administer antihistamines or epinephrine if prescribed", "Call emergency services for breathing difficulty"] },
+    { title: "Eye Injuries", items: ["Rinse the eye gently with clean water", "Do not rub or apply pressure", "Seek urgent medical care for chemical or penetrating injuries"] },
+    { title: "Seizures", items: ["Protect the person from injury", "Do not restrain or place objects in the mouth", "Call emergency services if seizure lasts more than 5 minutes"] },
+    { title: "Dental Emergencies", items: ["Rinse the mouth with warm water", "Preserve knocked-out teeth in milk or saline", "Seek a dentist immediately"] },
+    { title: "Stings and Bites", items: ["Remove the stinger if present", "Wash with soap and water", "Apply cold compress and monitor for allergic reactions"] },
+    { title: "Drowning / Near-Drowning", items: ["Remove from water if safe to do so", "Check breathing and circulation", "Begin CPR if necessary", "Call emergency services immediately"] }
+  ];
+
+  // ======== Image Upload / Camera ========
+  const handleInjuryDetectionClick = () => {
+    setShowDetectionOptions(true);
+    setSelectedImage(null);
+    setCapturedImage(null);
+    setAnalysisResult("");
+  };
+
+  const handleFileClick = () => fileInputRef.current.click();
+
+  const handleFileChange = (event) => {
+    const file = event.target.files[0];
+    if (file) {
+      setSelectedImage(file);
+      setCapturedImage(null);
+      setAnalysisResult("");
+    }
+  };
+
+  const handleUseCamera = async () => {
+    setShowCamera(true);
+    setSelectedImage(null);
+    setCapturedImage(null);
+    setAnalysisResult("");
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      videoRef.current.srcObject = stream;
+      videoRef.current.play();
+    } catch (err) {
+      alert("Cannot access camera");
+    }
+  };
+
+  const handleCapture = () => {
+    const context = canvasRef.current.getContext("2d");
+    context.drawImage(videoRef.current, 0, 0, 400, 300);
+    const dataUrl = canvasRef.current.toDataURL("image/png");
+    setCapturedImage(dataUrl);
+    setShowCamera(false);
+
+    const stream = videoRef.current.srcObject;
+    stream.getTracks().forEach((track) => track.stop());
+  };
+
+  // ======== Detect multiple injuries from filename ========
+  const detectFromFileName = (name) => {
+    const lower = name.toLowerCase();
+    const results = [];
+
+    if (lower.includes("burn")) results.push(demoDiagnoses[1]);
+    if (lower.includes("cut") || lower.includes("wound")) results.push(demoDiagnoses[0]);
+    if (lower.includes("bruise")) results.push(demoDiagnoses[2]);
+    if (lower.includes("deep") || lower.includes("bleed")) results.push(demoDiagnoses[3]);
+    if (lower.includes("sprain")) results.push(demoDiagnoses[4]);
+
+    if (results.length === 0) results.push(demoDiagnoses[Math.floor(Math.random() * demoDiagnoses.length)]);
+
+    return results;
+  };
+
+  // ======== Analyze Button (AI analyzing) ========
+  const handleAnalyzeClick = () => {
+    const imageToAnalyze = selectedImage || capturedImage;
+    if (!imageToAnalyze) {
+      alert("Please select or capture an image first!");
+      return;
+    }
+
+    setLoading(true);
+    setAnalysisResult("AI analyzing");
+
+    let dots = 0;
+    const interval = setInterval(() => {
+      dots = (dots + 1) % 4;
+      setAnalysisResult("AI analyzing" + ".".repeat(dots));
+    }, 400);
+
+    let diagnoses;
+    if (selectedImage && selectedImage.name) {
+      diagnoses = detectFromFileName(selectedImage.name); // returns array of injuries
+    } else {
+      diagnoses = [demoDiagnoses[Math.floor(Math.random() * demoDiagnoses.length)]];
+    }
+
+    setTimeout(() => {
+      clearInterval(interval);
+
+      const resultText = diagnoses.map((diag) => {
+        const stepsText = diag.steps.map(step => `- ${step}`).join("\n");
+        return `Injury Type: ${diag.injury}\nConfidence: ${diag.confidence}\nFirst Aid Steps:\n${stepsText}`;
+      }).join("\n\n");
+
+      setAnalysisResult(resultText + "\n\nDisclaimer: This does not replace professional medical care.");
+      setLoading(false);
+    }, 2500);
+  };
+
+  // ======== Find Hospital ========
+  const handleFindHospital = () => {
+    if (!navigator.geolocation) return alert("Geolocation not supported");
+
+    navigator.geolocation.getCurrentPosition(({ coords }) => {
+      const url = `https://www.google.com/maps/search/hospital/@${coords.latitude},${coords.longitude},15z`;
+      window.open(url, "_blank");
+    });
+  };
+
+  const filterGuide = (title) => title.toLowerCase().includes(searchQuery.toLowerCase());
+
+  return (
+    <>
+      <div className="top-right-buttons">
+        <button className="guide-top-btn" onClick={() => setShowGuide(true)}>First Aid Guide</button>
+        <button className="hospital-btn" onClick={handleFindHospital}>Find Hospital</button>
+        <button className="signout-btn" onClick={onSignOut}>Sign Out</button>
+      </div>
+
+      <section className="hero">
+        <h1>Welcome to FirstAid.AI</h1>
+        <p>Your intelligent first aid assistant for emergency situations</p>
+
+        {!showDetectionOptions && (
+          <button className="primary-btn" onClick={handleInjuryDetectionClick}>
+            <FaCamera style={{ marginRight: "8px" }} /> Injury Detection
+          </button>
+        )}
+
+        {showDetectionOptions && (
+          <div className="button-group">
+            <button className="primary-btn" onClick={handleFileClick}>Upload from File Explorer</button>
+            <button className="primary-btn" onClick={handleUseCamera}>Use Camera</button>
+          </div>
+        )}
+
+        <input
+          type="file"
+          accept="image/*"
+          ref={fileInputRef}
+          onChange={handleFileChange}
+          style={{ display: "none" }}
+        />
+
+        {showCamera && (
+          <div className="camera-preview">
+            <video ref={videoRef} width="400" height="300" />
+            <button onClick={handleCapture}>Capture Photo</button>
+            <canvas ref={canvasRef} width="400" height="300" style={{ display: "none" }} />
+          </div>
+        )}
+
+        {(selectedImage || capturedImage) && (
+          <button className="analyze-btn" onClick={handleAnalyzeClick}>Analyze</button>
+        )}
+
+        {loading && <div className="loader"></div>}
+
+        {(selectedImage || capturedImage) && (
+          <div className="image-preview">
+            <h3>Selected Image:</h3>
+            <img
+              src={selectedImage ? URL.createObjectURL(selectedImage) : capturedImage}
+              alt="Selected Injury"
+            />
+          </div>
+        )}
+
+        {analysisResult && (
+          <div className="analysis-result">
+            <pre>{analysisResult}</pre>
+          </div>
+        )}
+      </section>
+
+      {/* Guide Modal with Accordion */}
+      {showGuide && (
+        <div className="guide-modal">
+          <div className="guide-content">
+            <button className="close-btn" onClick={() => setShowGuide(false)}>×</button>
+            <h1>First Aid Guide</h1>
+
+            <input
+              type="text"
+              placeholder="Search first aid topics..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="guide-search"
+            />
+
+            {guideTopics
+              .filter((topic) => filterGuide(topic.title))
+              .map((topic, index) => (
+                <div key={index} className="accordion-item">
+                  <h2
+                    className="accordion-title"
+                    onClick={() => setOpenSection(openSection === index ? null : index)}
+                  >
+                    {topic.title}
+                  </h2>
+
+                  {openSection === index && (
+                    <ul className="accordion-content">
+                      {topic.items.map((step, i) => (
+                        <li key={i}>{step}</li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              ))}
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+// ======== Main App Wrapper ========
+function App() {
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+
+  return (
+    <>
+      {!isLoggedIn ? <Login onLogin={() => setIsLoggedIn(true)} /> : <FirstAidApp onSignOut={() => setIsLoggedIn(false)} />}
+    </>
+  );
+}
+
+export default App;
+
+
+
+///////////////////////////////////////////////////////////////////
+
+
+
+
+
+
+
+
+
+
+
+
+
+App.jsx file base result
+///////////////////////////////////////////////////////////
+import backgroundImage from "./assets/background.png";
+import { useState, useRef } from "react";
+import { FaCamera } from "react-icons/fa";
+import "./App.css";
+
+// ======== Login Component ========
+function Login({ onLogin }) {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (!email || !password) {
+      alert("Please enter email and password");
+      return;
+    }
+    onLogin();
+  };
+
+  return (
+    <div className="login-container">
+      <h2>Sign in to your account</h2>
+      <form onSubmit={handleSubmit} className="login-form">
+        <label>Email address</label>
+        <input
+          type="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          className="login-input"
+        />
+
+        <label>Password</label>
+        <input
+          type="password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          className="login-input"
+        />
+
+        <button type="submit" className="login-btn">Sign In</button>
+      </form>
+      <p>Don't have an account? <a href="#">Sign up</a></p>
+    </div>
+  );
+}
+
+// ======== FirstAid AI App Component ========
+function FirstAidApp({ onSignOut }) {
+  const [showGuide, setShowGuide] = useState(false);
+  const [showDetectionOptions, setShowDetectionOptions] = useState(false);
+  const [selectedImage, setSelectedImage] = useState(null);
+  const [capturedImage, setCapturedImage] = useState(null);
+  const [analysisResult, setAnalysisResult] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [showCamera, setShowCamera] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [openSection, setOpenSection] = useState(null);
+
+  const fileInputRef = useRef(null);
+  const videoRef = useRef(null);
+  const canvasRef = useRef(null);
+
+  // ======== Demo Diagnoses ========
+  const demoDiagnoses = [
+    { injury: "Minor Cut", confidence: "85%", steps: ["Wash hands thoroughly", "Clean the wound with water", "Apply antibiotic ointment", "Cover with a sterile bandage"] },
+    { injury: "Burn", confidence: "90%", steps: ["Cool under running water for 20 minutes", "Do not apply ice directly", "Cover with sterile gauze", "Seek medical help if severe"] },
+    { injury: "Bruise", confidence: "75%", steps: ["Apply ice for 15 minutes", "Rest the injured area", "Keep area elevated"] },
+    { injury: "Deep Wound", confidence: "95%", steps: ["Apply direct pressure to stop bleeding", "Keep the area elevated", "Do not remove embedded objects", "Call emergency services immediately"] },
+    { injury: "Sprain", confidence: "80%", steps: ["Rest the injured joint", "Apply ice for 20 minutes", "Wrap with compression bandage", "Keep limb elevated"] }
+  ];
+
+  // ======== Full First Aid Guide ========
+  const guideTopics = [
+    { title: "Cuts and Wounds", items: ["Clean your hands thoroughly with soap and water", "Rinse the wound gently with clean water", "Apply antibiotic ointment if available", "Cover with a sterile bandage", "For severe bleeding: apply direct pressure and seek emergency care"] },
+    { title: "Burns", items: ["Cool the burn under cool (not cold) running water for 10–20 minutes", "Do not apply ice directly to the skin", "Cover loosely with sterile gauze", "Seek medical care for large or blistering burns"] },
+    { title: "CPR and Breathing", items: ["Check responsiveness and breathing", "Call emergency services immediately", "Begin chest compressions at a rate of 100–120 per minute", "Provide rescue breaths if trained"] },
+    { title: "Choking", items: ["Encourage coughing if the person can still breathe", "Perform abdominal thrusts (Heimlich maneuver) if trained", "Call emergency services if the object cannot be removed"] },
+    { title: "Fractures and Sprains", items: ["Immobilize the injured area", "Apply ice to reduce swelling", "Do not attempt to realign broken bones", "Seek medical evaluation promptly"] },
+    { title: "Head Injuries", items: ["Keep the person still and calm", "Monitor for confusion, vomiting, or loss of consciousness", "Seek emergency care for severe symptoms"] },
+    { title: "Poisoning", items: ["Call poison control or emergency services immediately", "Do not induce vomiting unless instructed", "Keep the substance container for identification"] },
+    { title: "Heat-Related Emergencies", items: ["Move the person to a cool area", "Loosen tight clothing and provide fluids", "Seek emergency help for heat stroke"] },
+    { title: "Cold-Related Emergencies", items: ["Warm the person gradually", "Remove wet clothing", "Seek medical help for frostbite or hypothermia"] },
+    { title: "Allergic Reactions", items: ["Remove the allergen if possible", "Administer antihistamines or epinephrine if prescribed", "Call emergency services for breathing difficulty"] },
+    { title: "Eye Injuries", items: ["Rinse the eye gently with clean water", "Do not rub or apply pressure", "Seek urgent medical care for chemical or penetrating injuries"] },
+    { title: "Seizures", items: ["Protect the person from injury", "Do not restrain or place objects in the mouth", "Call emergency services if seizure lasts more than 5 minutes"] },
+    { title: "Dental Emergencies", items: ["Rinse the mouth with warm water", "Preserve knocked-out teeth in milk or saline", "Seek a dentist immediately"] },
+    { title: "Stings and Bites", items: ["Remove the stinger if present", "Wash with soap and water", "Apply cold compress and monitor for allergic reactions"] },
+    { title: "Drowning / Near-Drowning", items: ["Remove from water if safe to do so", "Check breathing and circulation", "Begin CPR if necessary", "Call emergency services immediately"] },
+  ];
+
+  // ======== File-name detection ========
+  const detectFromFileName = (name) => {
+    const lower = name.toLowerCase();
+    if (lower.includes("burn")) return demoDiagnoses[1];
+    if (lower.includes("cut") || lower.includes("wound")) return demoDiagnoses[0];
+    if (lower.includes("bruise")) return demoDiagnoses[2];
+    if (lower.includes("deep") || lower.includes("bleed")) return demoDiagnoses[3];
+    if (lower.includes("sprain")) return demoDiagnoses[4];
+    return demoDiagnoses[Math.floor(Math.random() * demoDiagnoses.length)];
+  };
+
+  // ======== Handlers ========
+  const handleInjuryDetectionClick = () => {
+    setShowDetectionOptions(true);
+    setSelectedImage(null);
+    setCapturedImage(null);
+    setAnalysisResult("");
+  };
+
+  const handleFileClick = () => fileInputRef.current.click();
+
+  const handleFileChange = (event) => {
+    const file = event.target.files[0];
+    if (file) {
+      setSelectedImage(file);
+      setCapturedImage(null);
+      setAnalysisResult("");
+    }
+  };
+
+  const handleUseCamera = async () => {
+    setShowCamera(true);
+    setSelectedImage(null);
+    setCapturedImage(null);
+    setAnalysisResult("");
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      videoRef.current.srcObject = stream;
+      videoRef.current.play();
+    } catch {
+      alert("Cannot access camera");
+    }
+  };
+
+  const handleCapture = () => {
+    const context = canvasRef.current.getContext("2d");
+    context.drawImage(videoRef.current, 0, 0, 400, 300);
+    const dataUrl = canvasRef.current.toDataURL("image/png");
+    setCapturedImage(dataUrl);
+    setShowCamera(false);
+    const stream = videoRef.current.srcObject;
+    stream.getTracks().forEach((track) => track.stop());
+  };
+
+  const handleAnalyzeClick = () => {
+    const imageToAnalyze = selectedImage || capturedImage;
+    if (!imageToAnalyze) {
+      alert("Please select or capture an image first!");
+      return;
+    }
+
+    setLoading(true);
+    setAnalysisResult("AI analyzing");
+
+    let dots = 0;
+    const interval = setInterval(() => {
+      dots = (dots + 1) % 4;
+      setAnalysisResult("AI analyzing" + ".".repeat(dots));
+    }, 400);
+
+    // Determine diagnosis
+    let diagnosis;
+    if (selectedImage && selectedImage.name) {
+      diagnosis = detectFromFileName(selectedImage.name);
+    } else {
+      diagnosis = demoDiagnoses[Math.floor(Math.random() * demoDiagnoses.length)];
+    }
+
+    setTimeout(() => {
+      clearInterval(interval);
+      const stepsText = diagnosis.steps.map(step => `- ${step}`).join("\n");
+      setAnalysisResult(
+        `Injury Type: ${diagnosis.injury}\n` +
+        `Confidence: ${diagnosis.confidence}\n\n` +
+        `First Aid Steps:\n${stepsText}\n\n` +
+        `Disclaimer: This does not replace professional medical care.`
+      );
+      setLoading(false);
+    }, 2500);
+  };
+
+  const handleFindHospital = () => {
+    if (!navigator.geolocation) return alert("Geolocation not supported");
+    navigator.geolocation.getCurrentPosition(({ coords }) => {
+      const url = `https://www.google.com/maps/search/hospital/@${coords.latitude},${coords.longitude},15z`;
+      window.open(url, "_blank");
+    });
+  };
+
+  const filterGuide = (title) => title.toLowerCase().includes(searchQuery.toLowerCase());
+
+  return (
+    <>
+      {/* Top-right buttons */}
+      <div className="top-right-buttons">
+        <button className="guide-top-btn" onClick={() => setShowGuide(true)}>First Aid Guide</button>
+        <button className="hospital-btn" onClick={handleFindHospital}>Find Hospital</button>
+        <button className="signout-btn" onClick={onSignOut}>Sign Out</button>
+      </div>
+
+      {/* Hero Section */}
+      <section className="hero">
+        <h1>Welcome to FirstAid.AI</h1>
+        <p>Your intelligent first aid assistant for emergency situations</p>
+
+        {!showDetectionOptions && (
+          <button className="primary-btn" onClick={handleInjuryDetectionClick}>
+            <FaCamera style={{ marginRight: "8px" }} /> Injury Detection
+          </button>
+        )}
+
+        {showDetectionOptions && (
+          <div className="button-group">
+            <button className="primary-btn" onClick={handleFileClick}>Upload from File Explorer</button>
+            <button className="primary-btn" onClick={handleUseCamera}>Use Camera</button>
+          </div>
+        )}
+
+        <input type="file" accept="image/*" ref={fileInputRef} onChange={handleFileChange} style={{ display: "none" }} />
+
+        {showCamera && (
+          <div className="camera-preview">
+            <video ref={videoRef} width="400" height="300" />
+            <button onClick={handleCapture}>Capture Photo</button>
+            <canvas ref={canvasRef} width="400" height="300" style={{ display: "none" }} />
+          </div>
+        )}
+
+        {(selectedImage || capturedImage) && (
+          <button className="analyze-btn" onClick={handleAnalyzeClick}>Analyze</button>
+        )}
+
+        {loading && <div className="loader"></div>}
+
+        {(selectedImage || capturedImage) && (
+          <div className="image-preview">
+            <h3>Selected Image:</h3>
+            <img src={selectedImage ? URL.createObjectURL(selectedImage) : capturedImage} alt="Selected Injury" />
+          </div>
+        )}
+
+        {analysisResult && (
+          <div className="analysis-result">
+            <pre>{analysisResult}</pre>
+          </div>
+        )}
+      </section>
+
+      {/* Guide Modal with Accordion */}
+      {showGuide && (
+        <div className="guide-modal">
+          <div className="guide-content">
+            <button className="close-btn" onClick={() => setShowGuide(false)}>×</button>
+            <h1>First Aid Guide</h1>
+            <input type="text" placeholder="Search first aid topics..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="guide-search" />
+
+            {guideTopics.filter(topic => filterGuide(topic.title)).map((topic, index) => (
+              <div key={index} className="accordion-item">
+                <h2 className="accordion-title" onClick={() => setOpenSection(openSection === index ? null : index)}>{topic.title}</h2>
+                {openSection === index && (
+                  <ul className="accordion-content">
+                    {topic.items.map((step, i) => <li key={i}>{step}</li>)}
+                  </ul>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+// ======== Main App Wrapper ========
+function App() {
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+
+  return (
+    <>
+      {!isLoggedIn ? <Login onLogin={() => setIsLoggedIn(true)} /> : <FirstAidApp onSignOut={() => setIsLoggedIn(false)} />}
+    </>
+  );
+}
+
+export default App;
+
+
+
+
+
+
+/////////////////////////////////////
+
+
+
+
+App.jsx random 
+/////////////////////////////////////////////////////////////
+import backgroundImage from "./assets/background.png";
+import { useState, useRef } from "react";
+import { FaCamera } from "react-icons/fa";
+import "./App.css";
+
+// ======== Login Component ========
+function Login({ onLogin }) {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (!email || !password) {
+      alert("Please enter email and password");
+      return;
+    }
+    onLogin();
+  };
+
+  return (
+    <div className="login-container">
+      <h2>Sign in to your account</h2>
+      <form onSubmit={handleSubmit} className="login-form">
+        <label>Email address</label>
+        <input
+          type="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          className="login-input"
+        />
+
+        <label>Password</label>
+        <input
+          type="password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          className="login-input"
+        />
+
+        <button type="submit" className="login-btn">
+          Sign In
+        </button>
+      </form>
+      <p>
+        Don't have an account? <a href="#">Sign up</a>
+      </p>
+    </div>
+  );
+}
+
+// ======== FirstAid AI App Component ========
+function FirstAidApp({ onSignOut }) {
+  const [showGuide, setShowGuide] = useState(false);
+  const [showDetectionOptions, setShowDetectionOptions] = useState(false);
+  const [selectedImage, setSelectedImage] = useState(null);
+  const [capturedImage, setCapturedImage] = useState(null);
+  const [analysisResult, setAnalysisResult] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [showCamera, setShowCamera] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [openSection, setOpenSection] = useState(null);
+
+  const fileInputRef = useRef(null);
+  const videoRef = useRef(null);
+  const canvasRef = useRef(null);
+
+  // ======== DEMO AI DIAGNOSES (SMART PLACEHOLDER AI) ========
+  const demoDiagnoses = [
+    {
+      injury: "Minor Cut",
+      confidence: "85%",
+      steps: [
+        "Wash hands thoroughly",
+        "Clean the wound with water",
+        "Apply antibiotic ointment",
+        "Cover with a sterile bandage",
+      ],
+    },
+    {
+      injury: "Burn",
+      confidence: "90%",
+      steps: [
+        "Cool under running water for 20 minutes",
+        "Do not apply ice directly",
+        "Cover with sterile gauze",
+        "Seek medical help if severe",
+      ],
+    },
+    {
+      injury: "Bruise",
+      confidence: "75%",
+      steps: [
+        "Apply ice for 15 minutes",
+        "Rest the injured area",
+        "Keep area elevated",
+      ],
+    },
+    {
+      injury: "Deep Wound",
+      confidence: "95%",
+      steps: [
+        "Apply direct pressure to stop bleeding",
+        "Keep the area elevated",
+        "Do not remove embedded objects",
+        "Call emergency services immediately",
+      ],
+    },
+    {
+      injury: "Sprain",
+      confidence: "80%",
+      steps: [
+        "Rest the injured joint",
+        "Apply ice for 20 minutes",
+        "Wrap with compression bandage",
+        "Keep limb elevated",
+      ],
+    },
+  ];
+
+  // ======== FULL FIRST AID GUIDE DATA (ACCORDION) ========
+  const guideTopics = [
+    {
+      title: "Cuts and Wounds",
+      items: [
+        "Clean your hands thoroughly with soap and water",
+        "Rinse the wound gently with clean water",
+        "Apply antibiotic ointment if available",
+        "Cover with a sterile bandage",
+        "For severe bleeding: apply direct pressure and seek emergency care",
+      ],
+    },
+    {
+      title: "Burns",
+      items: [
+        "Cool the burn under cool (not cold) running water for 10–20 minutes",
+        "Do not apply ice directly to the skin",
+        "Cover loosely with sterile gauze",
+        "Seek medical care for large or blistering burns",
+      ],
+    },
+    {
+      title: "CPR and Breathing",
+      items: [
+        "Check responsiveness and breathing",
+        "Call emergency services immediately",
+        "Begin chest compressions at a rate of 100–120 per minute",
+        "Provide rescue breaths if trained",
+      ],
+    },
+    {
+      title: "Choking",
+      items: [
+        "Encourage coughing if the person can still breathe",
+        "Perform abdominal thrusts (Heimlich maneuver) if trained",
+        "Call emergency services if the object cannot be removed",
+      ],
+    },
+    {
+      title: "Fractures and Sprains",
+      items: [
+        "Immobilize the injured area",
+        "Apply ice to reduce swelling",
+        "Do not attempt to realign broken bones",
+        "Seek medical evaluation promptly",
+      ],
+    },
+    {
+      title: "Head Injuries",
+      items: [
+        "Keep the person still and calm",
+        "Monitor for confusion, vomiting, or loss of consciousness",
+        "Seek emergency care for severe symptoms",
+      ],
+    },
+    {
+      title: "Poisoning",
+      items: [
+        "Call poison control or emergency services immediately",
+        "Do not induce vomiting unless instructed",
+        "Keep the substance container for identification",
+      ],
+    },
+    {
+      title: "Heat-Related Emergencies",
+      items: [
+        "Move the person to a cool area",
+        "Loosen tight clothing and provide fluids",
+        "Seek emergency help for heat stroke",
+      ],
+    },
+    {
+      title: "Cold-Related Emergencies",
+      items: [
+        "Warm the person gradually",
+        "Remove wet clothing",
+        "Seek medical help for frostbite or hypothermia",
+      ],
+    },
+    {
+      title: "Allergic Reactions",
+      items: [
+        "Remove the allergen if possible",
+        "Administer antihistamines or epinephrine if prescribed",
+        "Call emergency services for breathing difficulty",
+      ],
+    },
+    {
+      title: "Eye Injuries",
+      items: [
+        "Rinse the eye gently with clean water",
+        "Do not rub or apply pressure",
+        "Seek urgent medical care for chemical or penetrating injuries",
+      ],
+    },
+    {
+      title: "Seizures",
+      items: [
+        "Protect the person from injury",
+        "Do not restrain or place objects in the mouth",
+        "Call emergency services if seizure lasts more than 5 minutes",
+      ],
+    },
+    {
+      title: "Dental Emergencies",
+      items: [
+        "Rinse the mouth with warm water",
+        "Preserve knocked-out teeth in milk or saline",
+        "Seek a dentist immediately",
+      ],
+    },
+    {
+      title: "Stings and Bites",
+      items: [
+        "Remove the stinger if present",
+        "Wash with soap and water",
+        "Apply cold compress and monitor for allergic reactions",
+      ],
+    },
+    {
+      title: "Drowning / Near-Drowning",
+      items: [
+        "Remove from water if safe to do so",
+        "Check breathing and circulation",
+        "Begin CPR if necessary",
+        "Call emergency services immediately",
+      ],
+    },
+  ];
+
+  // ======== Image Upload / Camera ========
+  const handleInjuryDetectionClick = () => {
+    setShowDetectionOptions(true);
+    setSelectedImage(null);
+    setCapturedImage(null);
+    setAnalysisResult("");
+  };
+
+  const handleFileClick = () => fileInputRef.current.click();
+
+  const handleFileChange = (event) => {
+    const file = event.target.files[0];
+    if (file) {
+      setSelectedImage(file);
+      setCapturedImage(null);
+      setAnalysisResult("");
+    }
+  };
+
+  const handleUseCamera = async () => {
+    setShowCamera(true);
+    setSelectedImage(null);
+    setCapturedImage(null);
+    setAnalysisResult("");
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      videoRef.current.srcObject = stream;
+      videoRef.current.play();
+    } catch (err) {
+      alert("Cannot access camera");
+    }
+  };
+
+  const handleCapture = () => {
+    const context = canvasRef.current.getContext("2d");
+    context.drawImage(videoRef.current, 0, 0, 400, 300);
+    const dataUrl = canvasRef.current.toDataURL("image/png");
+    setCapturedImage(dataUrl);
+    setShowCamera(false);
+
+    const stream = videoRef.current.srcObject;
+    stream.getTracks().forEach((track) => track.stop());
+  };
+
+  // ======== Analyze Button (SMART DEMO AI) ========
+  const handleAnalyzeClick = () => {
+    const imageToAnalyze = selectedImage || capturedImage;
+    if (!imageToAnalyze) {
+      alert("Please select or capture an image first!");
+      return;
+    }
+
+    setLoading(true);
+    setAnalysisResult("");
+
+    const randomDiagnosis =
+      demoDiagnoses[Math.floor(Math.random() * demoDiagnoses.length)];
+
+    setTimeout(() => {
+      setAnalysisResult(
+        `Injury Type: ${randomDiagnosis.injury}\n` +
+          `Confidence: ${randomDiagnosis.confidence}\n\n` +
+          `First Aid Steps:\n- ${randomDiagnosis.steps.join("\n- ")}\n\n` +
+          `Disclaimer: This does not replace professional medical care.`
+      );
+      setLoading(false);
+    }, 1500);
+  };
+
+  // ======== Find Hospital ========
+  const handleFindHospital = () => {
+    if (!navigator.geolocation) return alert("Geolocation not supported");
+
+    navigator.geolocation.getCurrentPosition(({ coords }) => {
+      const url = `https://www.google.com/maps/search/hospital/@${coords.latitude},${coords.longitude},15z`;
+      window.open(url, "_blank");
+    });
+  };
+
+  const filterGuide = (title) =>
+    title.toLowerCase().includes(searchQuery.toLowerCase());
+
+  return (
+    <>
+      {/* Top-right buttons */}
+      <div className="top-right-buttons">
+        <button className="guide-top-btn" onClick={() => setShowGuide(true)}>
+          First Aid Guide
+        </button>
+        <button className="hospital-btn" onClick={handleFindHospital}>
+          Find Hospital
+        </button>
+        <button className="signout-btn" onClick={onSignOut}>
+          Sign Out
+        </button>
+      </div>
+
+      {/* Hero Section */}
+      <section className="hero">
+        <h1>Welcome to FirstAid.AI</h1>
+        <p>Your intelligent first aid assistant for emergency situations</p>
+
+        {!showDetectionOptions && (
+          <button className="primary-btn" onClick={handleInjuryDetectionClick}>
+            <FaCamera style={{ marginRight: "8px" }} /> Injury Detection
+          </button>
+        )}
+
+        {showDetectionOptions && (
+          <div className="button-group">
+            <button className="primary-btn" onClick={handleFileClick}>
+              Upload from File Explorer
+            </button>
+            <button className="primary-btn" onClick={handleUseCamera}>
+              Use Camera
+            </button>
+          </div>
+        )}
+
+        <input
+          type="file"
+          accept="image/*"
+          ref={fileInputRef}
+          onChange={handleFileChange}
+          style={{ display: "none" }}
+        />
+
+        {showCamera && (
+          <div className="camera-preview">
+            <video ref={videoRef} width="400" height="300" />
+            <button onClick={handleCapture}>Capture Photo</button>
+            <canvas ref={canvasRef} width="400" height="300" style={{ display: "none" }} />
+          </div>
+        )}
+
+        {(selectedImage || capturedImage) && (
+          <button className="analyze-btn" onClick={handleAnalyzeClick}>
+            Analyze
+          </button>
+        )}
+
+        {loading && <div className="loader"></div>}
+
+        {(selectedImage || capturedImage) && (
+          <div className="image-preview">
+            <h3>Selected Image:</h3>
+            <img
+              src={selectedImage ? URL.createObjectURL(selectedImage) : capturedImage}
+              alt="Selected Injury"
+            />
+          </div>
+        )}
+
+        {analysisResult && (
+          <div className="analysis-result">
+            <pre>{analysisResult}</pre>
+          </div>
+        )}
+      </section>
+
+      {/* Guide Modal with Accordion */}
+      {showGuide && (
+        <div className="guide-modal">
+          <div className="guide-content">
+            <button className="close-btn" onClick={() => setShowGuide(false)}>×</button>
+            <h1>First Aid Guide</h1>
+
+            <input
+              type="text"
+              placeholder="Search first aid topics..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="guide-search"
+            />
+
+            {guideTopics
+              .filter((topic) => filterGuide(topic.title))
+              .map((topic, index) => (
+                <div key={index} className="accordion-item">
+                  <h2
+                    className="accordion-title"
+                    onClick={() => setOpenSection(openSection === index ? null : index)}
+                  >
+                    {topic.title}
+                  </h2>
+
+                  {openSection === index && (
+                    <ul className="accordion-content">
+                      {topic.items.map((step, i) => (
+                        <li key={i}>{step}</li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              ))}
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+// ======== Main App Wrapper ========
+function App() {
+  const [isLoggedIn, setIsLoggedIn] = useState(true);//false
+
+  return (
+    <>
+      {!isLoggedIn ? (
+        <Login onLogin={() => setIsLoggedIn(true)} />
+      ) : (
+        <FirstAidApp onSignOut={() => setIsLoggedIn(false)} />
+      )}
+    </>
+  );
+}
+
+export default App;
+
+////////////////////////////////////////////////////////////////////////////////
