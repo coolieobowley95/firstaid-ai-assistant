@@ -158,7 +158,7 @@ function FirstAidApp({ onSignOut }) {
         base64Image = imageData.split(",")[1];
       }
 
-      const response = await fetch("http://localhost:5000/api/analyze", {
+      const response = await fetch("/api/analyze", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ imageBase64: base64Image }),
