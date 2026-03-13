@@ -19,4 +19,5 @@ build
 Thumbs.db
 
 # sensitive files
-*.json
+credentials.json
+serviceAccountKey.json
