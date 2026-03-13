@@ -1,0 +1,24 @@
+{
+  "name": "ai-first-aid-assistant---gemini---final",
+  "version": "1.0.0",
+  "description": "AI-powered First Aid Assistant web app built with React and Vite. Provides injury guidance via AI directly from the frontend. Backend and Firebase integration for storing emergency cases are planned for future versions.",
+  "main": "index.js",
+  "scripts": {
+  "start": "concurrently \"npm run dev --prefix frontend\" \"npm run dev --prefix backend\""
+},
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/coolieobowley95/firstaid-ai-assistant.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/coolieobowley95/firstaid-ai-assistant/issues"
+  },
+  "homepage": "https://github.com/coolieobowley95/firstaid-ai-assistant#readme",
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  }
+}
