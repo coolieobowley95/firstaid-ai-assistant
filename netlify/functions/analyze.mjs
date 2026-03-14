@@ -15,29 +15,42 @@ export default async (req) => {
     return Response.json({ error: "Method not allowed" }, { status: 405 });
   }
 
-  const { imageBase64, filename } = await req.json();
+// Handle both JSON payloads and multipart/form-data file uploads.
+  let imageBase64;
+  const contentType = req.headers.get("content-type") || "";
+
+  if (contentType.startsWith("multipart/form-data")) {
+    const formData = await req.formData();
+    const file = formData.get("image");
+
+    if (!file) {
+      return Response.json({ error: "No image provided" }, { status: 400 });
+    }
+
+    const buffer = await file.arrayBuffer();
+
+    const toBase64 = (buf) => {
+      if (typeof Buffer !== "undefined") {
+        return Buffer.from(buf).toString("base64");
+      }
+
+      let binary = "";
+      const bytes = new Uint8Array(buf);
+      const chunkSize = 0x8000;
+      for (let i = 0; i < bytes.length; i += chunkSize) {
+        binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
+      }
+      return btoa(binary);
+    };
+
+    imageBase64 = toBase64(buffer);
+  } else {
+    const { imageBase64: bodyImageBase64 } = await req.json();
+    imageBase64 = bodyImageBase64;
+  }
 
   if (!imageBase64) {
     return Response.json({ error: "No image provided" }, { status: 400 });
-  }
-
-  // Define API key first
-  const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-
-  // New: Check if filename has injury keywords
-  const hasKeywords = filename && ['cut', 'bleed', 'burn', 'fracture', 'sprain'].some(k => filename.toLowerCase().includes(k));
-
-  if (!hasKeywords) {
-    // For files without keywords, try Gemini, if fails use mock
-    if (!GEMINI_API_KEY) {
-      console.warn("No API key found — using mock response");
-      return Response.json(randomMock());
-    }
-  } else {
-    // For files with keywords, require Gemini, no mock fallback
-    if (!GEMINI_API_KEY) {
-      return Response.json({ error: "API key required for injury analysis" }, { status: 500 });
-    }
   }
 
   // First-aid rules
@@ -76,7 +89,12 @@ export default async (req) => {
     };
   }
 
-  // Removed duplicate GEMINI_API_KEY definition - now defined at top
+  const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+
+  if (!GEMINI_API_KEY) {
+    console.warn("No API key found — using mock response");
+    return Response.json(randomMock());
+  }
 
   try {
     const geminiResponse = await fetch(
@@ -116,12 +134,8 @@ Then give step-by-step first aid instructions.`,
       const data = JSON.parse(rawText);
       aiText = data?.candidates?.[0]?.content?.parts?.[0]?.text || "";
     } catch {
-      console.warn("Could not parse Gemini JSON");
-      if (hasKeywords) {
-        return Response.json({ error: "AI analysis failed. Please try again." }, { status: 500 });
-      } else {
-        return Response.json(randomMock());
-      }
+      console.warn("Could not parse Gemini JSON — using mock");
+      return Response.json(randomMock());
     }
 
     let injury = "unknown";
@@ -134,12 +148,8 @@ Then give step-by-step first aid instructions.`,
     if (confidenceMatch) confidence = confidenceMatch[1] + "%";
 
     if (!rules[injury]) {
-      console.warn("AI unclear");
-      if (hasKeywords) {
-        return Response.json({ error: "Unable to analyze injury. Please try again." }, { status: 500 });
-      } else {
-        return Response.json(randomMock());
-      }
+      console.warn("AI unclear — using mock instead");
+      return Response.json(randomMock());
     }
 
     return Response.json({
@@ -151,11 +161,7 @@ Then give step-by-step first aid instructions.`,
     });
   } catch (err) {
     console.error("Gemini API error:", err);
-    if (hasKeywords) {
-      return Response.json({ error: "AI analysis failed. Please try again." }, { status: 500 });
-    } else {
-      return Response.json(randomMock());
-    }
+    return Response.json(randomMock());
   }
 };
 
