@@ -15,10 +15,26 @@ export default async (req) => {
     return Response.json({ error: "Method not allowed" }, { status: 405 });
   }
 
-  const { imageBase64 } = await req.json();
+  const { imageBase64, filename } = await req.json();
 
   if (!imageBase64) {
     return Response.json({ error: "No image provided" }, { status: 400 });
+  }
+
+  // New: Check if filename has injury keywords
+  const hasKeywords = filename && ['cut', 'bleed', 'burn', 'fracture', 'sprain'].some(k => filename.toLowerCase().includes(k));
+
+  if (hasKeywords) {
+    // For files with keywords, return matching mock directly
+    const keyword = ['cut', 'bleed', 'burn', 'fracture', 'sprain'].find(k => filename.toLowerCase().includes(k));
+    console.log(`Keyword "${keyword}" detected in filename — using keyword mock`);
+    return Response.json(keywordMock(keyword));
+  }
+
+  // For files without keywords, try Gemini, if fails use random mock
+  if (!GEMINI_API_KEY) {
+    console.warn("No API key found — using random mock response");
+    return Response.json(randomMock());
   }
 
   // First-aid rules
@@ -41,6 +57,18 @@ export default async (req) => {
       "Keep pressure until bleeding stops",
       "Seek emergency care if heavy bleeding",
     ],
+    fracture: [
+      "Immobilize the injured area",
+      "Apply ice to reduce swelling",
+      "Do not attempt to realign broken bones",
+      "Seek medical evaluation promptly",
+    ],
+    sprain: [
+      "Rest the injured area",
+      "Ice the area for 15-20 minutes",
+      "Compress with an elastic bandage",
+      "Elevate the injured limb",
+    ],
   };
 
   function randomMock() {
@@ -54,6 +82,27 @@ export default async (req) => {
       steps: rules[injury],
       disclaimer:
         "Mock response used. This does not replace professional medical care.",
+    };
+  }
+
+  // ===== Keyword-based mock =====
+  function keywordMock(keyword) {
+    const injuryMap = {
+      cut: "cut",
+      bleed: "bleeding",
+      burn: "burn",
+      fracture: "fracture",
+      sprain: "sprain"
+    };
+    const injury = injuryMap[keyword] || "unknown";
+    if (!rules[injury]) return randomMock(); // fallback
+
+    return {
+      mock: true,
+      injury,
+      confidence: "85%",
+      steps: rules[injury],
+      disclaimer: "⚠️ Mock response used. This does not replace professional medical care.",
     };
   }
 
@@ -102,7 +151,7 @@ Then give step-by-step first aid instructions.`,
       const data = JSON.parse(rawText);
       aiText = data?.candidates?.[0]?.content?.parts?.[0]?.text || "";
     } catch {
-      console.warn("Could not parse Gemini JSON — using mock");
+      console.warn("Could not parse Gemini JSON — using random mock");
       return Response.json(randomMock());
     }
 
@@ -116,7 +165,7 @@ Then give step-by-step first aid instructions.`,
     if (confidenceMatch) confidence = confidenceMatch[1] + "%";
 
     if (!rules[injury]) {
-      console.warn("AI unclear — using mock instead");
+      console.warn("AI unclear — using random mock instead");
       return Response.json(randomMock());
     }
 

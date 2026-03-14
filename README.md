@@ -48,6 +48,23 @@ Images named after injuries (example: burns.jpg) can trigger helper hints.
 ## How to Test
 
 1. Login or sign up
+2. Click "Injury Detection"
+3. Upload or capture an image
+4. Click "Analyze" to get AI injury analysis
+
+### Sample Injury Images for Testing
+
+To easily test the AI system, create a folder called `sample-injuries` in the project root with the following example images:
+
+- cuts.png
+- burns.jpg
+- sprain.jpg
+- fracture.jpg
+- snake-bite.png
+
+These images can be used by hackathon judges to quickly test the AI injury detection feature. Upload them via the "Upload from File Explorer" option to see the AI analysis in action.
+
+---
 2. Click **Upload Image**
 3. Upload an injury image or capture one using the camera
 4. Click **Analyze Image**

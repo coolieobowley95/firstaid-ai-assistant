@@ -32,6 +32,18 @@ const rules = {
     "Keep pressure until bleeding stops",
     "Seek emergency care if heavy bleeding",
   ],
+  fracture: [
+    "Immobilize the injured area",
+    "Apply ice to reduce swelling",
+    "Do not attempt to realign broken bones",
+    "Seek medical evaluation promptly",
+  ],
+  sprain: [
+    "Rest the injured area",
+    "Ice the area for 15-20 minutes",
+    "Compress with an elastic bandage",
+    "Elevate the injured limb",
+  ],
 };
 
 // ===== Dynamic mock fallback =====
@@ -49,16 +61,48 @@ function randomMock() {
   };
 }
 
+// ===== Keyword-based mock =====
+function keywordMock(keyword) {
+  const injuryMap = {
+    cut: "cut",
+    bleed: "bleeding",
+    burn: "burn",
+    fracture: "fracture",
+    sprain: "sprain"
+  };
+  const injury = injuryMap[keyword] || "unknown";
+  if (!rules[injury]) return randomMock(); // fallback
+
+  return {
+    mock: true,
+    injury,
+    confidence: "85%",
+    steps: rules[injury],
+    disclaimer: "⚠️ Mock response used. This does not replace professional medical care.",
+  };
+}
+
 // ===== Analyze endpoint =====
 app.post("/api/analyze", async (req, res) => {
-  const { imageBase64 } = req.body;
+  const { imageBase64, filename } = req.body;
 
   if (!imageBase64) {
     return res.status(400).json({ error: "No image provided" });
   }
 
+  // New: Check if filename has injury keywords
+  const hasKeywords = filename && ['cut', 'bleed', 'burn', 'fracture', 'sprain'].some(k => filename.toLowerCase().includes(k));
+
+  if (hasKeywords) {
+    // For files with keywords, return matching mock directly
+    const keyword = ['cut', 'bleed', 'burn', 'fracture', 'sprain'].find(k => filename.toLowerCase().includes(k));
+    console.log(`Keyword "${keyword}" detected in filename — using keyword mock`);
+    return res.json(keywordMock(keyword));
+  }
+
+  // For files without keywords, try Gemini, if fails use random mock
   if (!GEMINI_API_KEY) {
-    console.warn("No API key found — using mock response");
+    console.warn("No API key found — using random mock response");
     return res.json(randomMock());
   }
 
@@ -125,7 +169,7 @@ Then give step-by-step first aid instructions.`,
     if (confidenceMatch) confidence = confidenceMatch[1] + "%";
 
     if (!rules[injury]) {
-      console.warn("AI unclear — using mock instead");
+      console.warn("AI unclear — using random mock instead");
       return res.json(randomMock());
     }
 
@@ -139,7 +183,7 @@ Then give step-by-step first aid instructions.`,
     });
   } catch (err) {
     console.error("Gemini API error:", err);
-    console.log("Using mock fallback");
+    console.log("Using random mock fallback");
     res.json(randomMock());
   }
 });
