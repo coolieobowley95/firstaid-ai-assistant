@@ -3,6 +3,8 @@ import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import fetch from "node-fetch";
+import formidable from "formidable";
+import fs from "fs";
 
 dotenv.config();
 
@@ -51,26 +53,47 @@ function randomMock() {
 
 // ===== Analyze endpoint =====
 app.post("/api/analyze", async (req, res) => {
-  const { imageBase64, filename } = req.body;
+  // Support both JSON body (imageBase64) and multipart/form-data uploads.
+  let imageBase64;
+  const contentType = req.headers["content-type"] || "";
+
+  if (contentType.startsWith("multipart/form-data")) {
+    // Parse file upload using formidable
+    const form = new formidable.IncomingForm({ keepExtensions: true });
+
+    const parseResult = await new Promise((resolve, reject) => {
+      form.parse(req, (err, fields, files) => {
+        if (err) return reject(err);
+        resolve({ fields, files });
+      });
+    });
+
+    const file = parseResult.files?.image || parseResult.files?.file;
+    if (!file) {
+      return res.status(400).json({ error: "No image provided" });
+    }
+
+    const filePath = file.filepath || file.path;
+
+    try {
+      const buffer = fs.readFileSync(filePath);
+      imageBase64 = buffer.toString("base64");
+    } catch (err) {
+      console.error("Failed to read uploaded file:", err);
+      return res.status(500).json({ error: "Failed to read uploaded image" });
+    }
+  } else {
+    // Fallback: accept JSON body with imageBase64 field
+    imageBase64 = req.body?.imageBase64;
+  }
 
   if (!imageBase64) {
     return res.status(400).json({ error: "No image provided" });
   }
 
-  // New: Check if filename has injury keywords
-  const hasKeywords = filename && ['cut', 'bleed', 'burn', 'fracture', 'sprain'].some(k => filename.toLowerCase().includes(k));
-
-  if (!hasKeywords) {
-    // For files without keywords, try Gemini, if fails use mock
-    if (!GEMINI_API_KEY) {
-      console.warn("No API key found — using mock response");
-      return res.json(randomMock());
-    }
-  } else {
-    // For files with keywords, require Gemini, no mock fallback
-    if (!GEMINI_API_KEY) {
-      return res.status(500).json({ error: "API key required for injury analysis" });
-    }
+  if (!GEMINI_API_KEY) {
+    console.warn("No API key found — using mock response");
+    return res.json(randomMock());
   }
 
   try {
@@ -136,12 +159,8 @@ Then give step-by-step first aid instructions.`,
     if (confidenceMatch) confidence = confidenceMatch[1] + "%";
 
     if (!rules[injury]) {
-      console.warn("AI unclear");
-      if (hasKeywords) {
-        return res.status(500).json({ error: "Unable to analyze injury. Please try again." });
-      } else {
-        return res.json(randomMock());
-      }
+      console.warn("AI unclear — using mock instead");
+      return res.json(randomMock());
     }
 
     // ✅ Send real structured result
@@ -154,14 +173,8 @@ Then give step-by-step first aid instructions.`,
     });
   } catch (err) {
     console.error("Gemini API error:", err);
-    if (hasKeywords) {
-      // For files with keywords, don't use mock on failure
-      return res.status(500).json({ error: "AI analysis failed. Please try again." });
-    } else {
-      // For files without keywords, use mock on failure
-      console.log("Using mock fallback");
-      res.json(randomMock());
-    }
+    console.log("Using mock fallback");
+    res.json(randomMock());
   }
 });
 

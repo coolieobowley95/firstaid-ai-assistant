@@ -11,6 +11,7 @@
     "cors": "^2.8.6",
     "dotenv": "^16.6.1",
     "express": "^4.22.1",
+    "formidable": "^3.0.0",
     "google-auth-library": "^10.5.0",
     "node-fetch": "^2.7.0",
     "openai": "^4.104.0"
