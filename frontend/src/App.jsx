@@ -6,8 +6,7 @@ import {
   FaHospital, 
   FaSignOutAlt, 
   FaFileUpload, 
-  FaFirstAid,
-  FaTimes
+  FaFirstAid 
 } from "react-icons/fa";
 import "./App.css";
 
@@ -47,6 +46,7 @@ function Login({ onLogin }) {
 
         <button type="submit" className="login-btn">Sign In</button>
       </form>
+      <p>Don't have an account? <a href="#">Sign up</a></p>
     </div>
   );
 }
@@ -62,10 +62,6 @@ function FirstAidApp({ onSignOut }) {
   const [showCamera, setShowCamera] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [openSection, setOpenSection] = useState(null);
-  // New: State for tip messages and helper hints
-  const [tipMessage, setTipMessage] = useState("");
-  // New: State for injury hint based on filename
-  const [injuryHint, setInjuryHint] = useState("");
 
   const fileInputRef = useRef(null);
   const videoRef = useRef(null);
@@ -96,8 +92,6 @@ function FirstAidApp({ onSignOut }) {
     setSelectedImage(null);
     setCapturedImage(null);
     setAnalysisResult("");
-    setTipMessage("");
-    setInjuryHint("");
   };
 
   const handleFileClick = () => fileInputRef.current.click();
@@ -108,24 +102,6 @@ function FirstAidApp({ onSignOut }) {
       setSelectedImage(file);
       setCapturedImage(null);
       setAnalysisResult("");
-      setInjuryHint("");
-      // New: Set tip message with naming advice and injury-specific hints
-      const filename = file.name.toLowerCase();
-      let tip = "Tip: For better detection, name your image after the injury. Example: cuts.png, burns.jpg, fracture.png";
-      const keywords = ['cut', 'bleed', 'burn', 'fracture', 'sprain'];
-      const matched = keywords.filter(k => filename.includes(k));
-      if (matched.length > 0) {
-        const injury = matched[0]; // take first match
-        const hints = {
-          cut: "For cuts: Clean with water, apply antiseptic, and cover with a bandage.",
-          bleed: "For bleeding: Apply firm pressure with a clean cloth, elevate if possible.",
-          burn: "For burns: Cool under running water for 10-20 minutes, cover with sterile dressing.",
-          fracture: "For fractures: Immobilize the area, apply ice, seek medical help.",
-          sprain: "For sprains: Rest, ice, compress, elevate (RICE method)."
-        };
-        tip += "\n\nHelper hint: " + hints[injury];
-      }
-      setTipMessage(tip);
     }
   };
 
@@ -134,8 +110,6 @@ function FirstAidApp({ onSignOut }) {
     setSelectedImage(null);
     setCapturedImage(null);
     setAnalysisResult("");
-    setTipMessage(""); // Clear tip for captured images
-    setInjuryHint("");
 
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ video: true });
@@ -144,16 +118,6 @@ function FirstAidApp({ onSignOut }) {
     } catch (err) {
       alert("Cannot access camera");
     }
-  };
-
-  // New: Cancel image function to reset selection
-  const handleCancelImage = () => {
-    setSelectedImage(null);
-    setCapturedImage(null);
-    setAnalysisResult("");
-    setTipMessage("");
-    setInjuryHint("");
-    setShowCamera(false);
   };
 
   const handleCapture = () => {
@@ -180,46 +144,25 @@ function FirstAidApp({ onSignOut }) {
     setLoading(true);
     setAnalysisResult("AI analyzing...");
 
-    // New: Check filename for injury keywords and set hint
-    const filename = imageFile ? imageFile.name.toLowerCase() : "";
-    const keywords = ['cut', 'bleed', 'burn', 'fracture', 'sprain'];
-    const matchedKeyword = keywords.find(k => filename.includes(k));
-    if (matchedKeyword) {
-      const injuryMap = {
-        cut: "cut",
-        bleed: "bleeding",
-        burn: "burn",
-        fracture: "fracture",
-        sprain: "sprain"
-      };
-      setInjuryHint(`Looks like a ${injuryMap[matchedKeyword]} injury`);
-    } else {
-      setInjuryHint("");
-    }
-
     try {
-      const formData = new FormData();
+      let base64Image;
+
       if (imageFile) {
-        formData.append('image', imageFile);
-        formData.append('filename', imageFile.name);
+        base64Image = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result.split(",")[1]);
+          reader.onerror = reject;
+          reader.readAsDataURL(imageFile);
+        });
       } else {
-        // For captured image, convert dataURL to blob
-        const response = await fetch(imageData);
-        const blob = await response.blob();
-        const file = new File([blob], 'captured.png', { type: 'image/png' });
-        formData.append('image', file);
-        formData.append('filename', 'captured.png');
+        base64Image = imageData.split(",")[1];
       }
 
       const response = await fetch("/api/analyze", {
         method: "POST",
-        body: formData,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ imageBase64: base64Image }),
       });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Analysis failed");
-      }
 
       const result = await response.json();
 
@@ -301,8 +244,6 @@ Disclaimer: ${result.disclaimer}
               <button className="primary-btn" onClick={handleUseCamera}>
                 <FaCamera style={{ marginRight: "6px" }} /> Use Camera
               </button>
-              {/* New: Small guidance text */}
-              <p className="upload-guidance">Supported example names: burns.jpg, cuts.png, fracture.jpg</p>
             </div>
           )}
 
@@ -335,24 +276,6 @@ Disclaimer: ${result.disclaimer}
                 src={selectedImage ? URL.createObjectURL(selectedImage) : capturedImage}
                 alt="Selected Injury"
               />
-              {/* New: Cancel Image button with icon */}
-              <button className="cancel-btn" onClick={handleCancelImage}>
-                <FaTimes style={{ marginRight: "6px" }} /> Cancel Image
-              </button>
-            </div>
-          )}
-
-          {/* New: Display tip message if available */}
-          {tipMessage && (
-            <div className="tip-message">
-              <pre>{tipMessage}</pre>
-            </div>
-          )}
-
-          {/* New: Display injury hint if available */}
-          {injuryHint && (
-            <div className="injury-hint">
-              <p>{injuryHint}</p>
             </div>
           )}
 
