@@ -21,6 +21,9 @@ export default async (req) => {
     return Response.json({ error: "No image provided" }, { status: 400 });
   }
 
+  // Define API key first
+  const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+
   // New: Check if filename has injury keywords
   const hasKeywords = filename && ['cut', 'bleed', 'burn', 'fracture', 'sprain'].some(k => filename.toLowerCase().includes(k));
 
@@ -73,12 +76,7 @@ export default async (req) => {
     };
   }
 
-  const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-
-  if (!GEMINI_API_KEY) {
-    console.warn("No API key found — using mock response");
-    return Response.json(randomMock());
-  }
+  // Removed duplicate GEMINI_API_KEY definition - now defined at top
 
   try {
     const geminiResponse = await fetch(
