@@ -220,6 +220,11 @@ function FirstAidApp({ onSignOut }) {
         }),
       });
 
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Analysis failed");
+      }
+
       const result = await response.json();
 
       const stepsText = result.steps.map(step => `- ${step}`).join("\n");

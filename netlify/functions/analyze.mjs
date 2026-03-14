@@ -24,17 +24,17 @@ export default async (req) => {
   // New: Check if filename has injury keywords
   const hasKeywords = filename && ['cut', 'bleed', 'burn', 'fracture', 'sprain'].some(k => filename.toLowerCase().includes(k));
 
-  if (hasKeywords) {
-    // For files with keywords, return matching mock directly
-    const keyword = ['cut', 'bleed', 'burn', 'fracture', 'sprain'].find(k => filename.toLowerCase().includes(k));
-    console.log(`Keyword "${keyword}" detected in filename — using keyword mock`);
-    return Response.json(keywordMock(keyword));
-  }
-
-  // For files without keywords, try Gemini, if fails use random mock
-  if (!GEMINI_API_KEY) {
-    console.warn("No API key found — using random mock response");
-    return Response.json(randomMock());
+  if (!hasKeywords) {
+    // For files without keywords, try Gemini, if fails use mock
+    if (!GEMINI_API_KEY) {
+      console.warn("No API key found — using mock response");
+      return Response.json(randomMock());
+    }
+  } else {
+    // For files with keywords, require Gemini, no mock fallback
+    if (!GEMINI_API_KEY) {
+      return Response.json({ error: "API key required for injury analysis" }, { status: 500 });
+    }
   }
 
   // First-aid rules
@@ -57,18 +57,6 @@ export default async (req) => {
       "Keep pressure until bleeding stops",
       "Seek emergency care if heavy bleeding",
     ],
-    fracture: [
-      "Immobilize the injured area",
-      "Apply ice to reduce swelling",
-      "Do not attempt to realign broken bones",
-      "Seek medical evaluation promptly",
-    ],
-    sprain: [
-      "Rest the injured area",
-      "Ice the area for 15-20 minutes",
-      "Compress with an elastic bandage",
-      "Elevate the injured limb",
-    ],
   };
 
   function randomMock() {
@@ -82,27 +70,6 @@ export default async (req) => {
       steps: rules[injury],
       disclaimer:
         "Mock response used. This does not replace professional medical care.",
-    };
-  }
-
-  // ===== Keyword-based mock =====
-  function keywordMock(keyword) {
-    const injuryMap = {
-      cut: "cut",
-      bleed: "bleeding",
-      burn: "burn",
-      fracture: "fracture",
-      sprain: "sprain"
-    };
-    const injury = injuryMap[keyword] || "unknown";
-    if (!rules[injury]) return randomMock(); // fallback
-
-    return {
-      mock: true,
-      injury,
-      confidence: "85%",
-      steps: rules[injury],
-      disclaimer: "⚠️ Mock response used. This does not replace professional medical care.",
     };
   }
 
@@ -151,8 +118,12 @@ Then give step-by-step first aid instructions.`,
       const data = JSON.parse(rawText);
       aiText = data?.candidates?.[0]?.content?.parts?.[0]?.text || "";
     } catch {
-      console.warn("Could not parse Gemini JSON — using random mock");
-      return Response.json(randomMock());
+      console.warn("Could not parse Gemini JSON");
+      if (hasKeywords) {
+        return Response.json({ error: "AI analysis failed. Please try again." }, { status: 500 });
+      } else {
+        return Response.json(randomMock());
+      }
     }
 
     let injury = "unknown";
@@ -165,8 +136,12 @@ Then give step-by-step first aid instructions.`,
     if (confidenceMatch) confidence = confidenceMatch[1] + "%";
 
     if (!rules[injury]) {
-      console.warn("AI unclear — using random mock instead");
-      return Response.json(randomMock());
+      console.warn("AI unclear");
+      if (hasKeywords) {
+        return Response.json({ error: "Unable to analyze injury. Please try again." }, { status: 500 });
+      } else {
+        return Response.json(randomMock());
+      }
     }
 
     return Response.json({
@@ -178,7 +153,11 @@ Then give step-by-step first aid instructions.`,
     });
   } catch (err) {
     console.error("Gemini API error:", err);
-    return Response.json(randomMock());
+    if (hasKeywords) {
+      return Response.json({ error: "AI analysis failed. Please try again." }, { status: 500 });
+    } else {
+      return Response.json(randomMock());
+    }
   }
 };
 
