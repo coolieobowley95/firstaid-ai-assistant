@@ -20,5 +20,8 @@
   "homepage": "https://github.com/coolieobowley95/firstaid-ai-assistant#readme",
   "devDependencies": {
     "concurrently": "^9.2.1"
+  },
+  "dependencies": {
+    "formidable": "^3.5.1"
   }
 }

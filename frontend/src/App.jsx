@@ -198,26 +198,22 @@ function FirstAidApp({ onSignOut }) {
     }
 
     try {
-      let base64Image;
-
+      const formData = new FormData();
       if (imageFile) {
-        base64Image = await new Promise((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onload = () => resolve(reader.result.split(",")[1]);
-          reader.onerror = reject;
-          reader.readAsDataURL(imageFile);
-        });
+        formData.append('image', imageFile);
+        formData.append('filename', imageFile.name);
       } else {
-        base64Image = imageData.split(",")[1];
+        // For captured image, convert dataURL to blob
+        const response = await fetch(imageData);
+        const blob = await response.blob();
+        const file = new File([blob], 'captured.png', { type: 'image/png' });
+        formData.append('image', file);
+        formData.append('filename', 'captured.png');
       }
 
       const response = await fetch("/api/analyze", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
-          imageBase64: base64Image,
-          filename: imageFile ? imageFile.name : "captured"
-        }),
+        body: formData,
       });
 
       if (!response.ok) {
