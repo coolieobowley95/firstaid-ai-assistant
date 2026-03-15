@@ -17,7 +17,7 @@ const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 // ===== First-aid rules =====
 const rules = {
   burn: [
-    "Cool the burn under running water for 10–20 minutes",
+    "Cool the burn under running water for 10-20 minutes",
     "Cover with a sterile, non-stick dressing",
     "Do NOT apply butter or toothpaste",
     "Seek medical help if severe or blistered",
@@ -47,7 +47,7 @@ function randomMock() {
     injury,
     confidence,
     steps: rules[injury],
-    disclaimer: "⚠️ Mock response used. This does not replace professional medical care.",
+    disclaimer: "Mock response used. This does not replace professional medical care.",
   };
 }
 
@@ -92,7 +92,7 @@ app.post("/api/analyze", async (req, res) => {
   }
 
   if (!GEMINI_API_KEY) {
-    console.warn("No API key found — using mock response");
+    console.warn("No API key found - using mock response");
     return res.json(randomMock());
   }
 
@@ -142,7 +142,7 @@ Then give step-by-step first aid instructions.`,
       aiText =
         data?.candidates?.[0]?.content?.parts?.[0]?.text || "";
     } catch (err) {
-      console.warn("Could not parse Gemini JSON — using mock");
+      console.warn("Could not parse Gemini JSON - using mock");
       return res.json(randomMock());
     }
 
@@ -159,7 +159,7 @@ Then give step-by-step first aid instructions.`,
     if (confidenceMatch) confidence = confidenceMatch[1] + "%";
 
     if (!rules[injury]) {
-      console.warn("AI unclear — using mock instead");
+      console.warn("AI unclear - using mock instead");
       return res.json(randomMock());
     }
 
@@ -184,7 +184,7 @@ app.get("/api/test", (req, res) => {
 });
 
 // ===== Start server =====
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 5001;
 app.listen(PORT, () => {
   console.log(`Backend running on port ${PORT}`);
 });
