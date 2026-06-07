@@ -1,22 +1,23 @@
 {
   "name": "first-aid-backend",
   "version": "1.0.0",
-  "private": true,
+  "main": "server.js",
   "type": "module",
   "scripts": {
-    "dev": "node server.js",
-    "start": "node server.js",
-    "test": "echo \"No tests configured\""
-  },
+  "start": "node server.js",
+  "dev": "node server.js"
+},
   "dependencies": {
     "cors": "^2.8.6",
     "dotenv": "^16.6.1",
     "express": "^4.22.1",
     "formidable": "^3.0.0",
-    "node-fetch": "^2.7.0"
+    "google-auth-library": "^10.5.0",
+    "node-fetch": "^2.7.0",
+    "openai": "^4.104.0"
   },
-  "engines": {
-    "node": ">=18"
-  },
-  "license": "ISC"
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": ""
 }
