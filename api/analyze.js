@@ -261,10 +261,10 @@ async function analyzeWithGroq(payload) {
       { role: "system", content: SYSTEM_PROMPT },
       {
         role: "user",
-        content: `Analyze this first aid situation using the filename and symptoms.
-Filename: ${payload.filename || "unknown"}
-Symptoms: ${payload.symptoms || "none provided"}
-If image details are not available, be conservative and say what the user should do next safely.`,
+        content: `Analyze this first aid situation based on TEXT ONLY (no image available to this model).
+Filename hint: ${payload.filename || "unknown"}
+User-described symptoms: ${payload.symptoms || "none provided"}
+Note: You cannot see the image. Use the filename and symptoms to give safe, conservative first aid guidance. If you are uncertain, recommend the user see a medical professional.`,
       },
     ],
     response_format: { type: "json_object" },

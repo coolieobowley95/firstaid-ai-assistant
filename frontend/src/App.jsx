@@ -85,7 +85,44 @@ function FirstAidApp({ onSignOut }) {
     { title: "Seizures", items: ["Protect the person from injury", "Do not restrain or place objects in the mouth", "Call emergency services if seizure lasts more than 5 minutes"] },
     { title: "Dental Emergencies", items: ["Rinse the mouth with warm water", "Preserve knocked-out teeth in milk or saline", "Seek a dentist immediately"] },
     { title: "Stings and Bites", items: ["Remove the stinger if present", "Wash with soap and water", "Apply cold compress and monitor for allergic reactions"] },
-    { title: "Drowning / Near-Drowning", items: ["Remove from water if safe to do so", "Check breathing and circulation", "Begin CPR if necessary", "Call emergency services immediately"] }
+    { title: "Drowning / Near-Drowning", items: ["Remove from water if safe to do so", "Check breathing and circulation", "Begin CPR if necessary", "Call emergency services immediately"] },
+    {
+      title: "🧾 ICD-11 — International Classification of Diseases (WHO)",
+      items: [
+        "Created by the World Health Organization (WHO)",
+        "Contains 55,000+ medical codes covering diseases, symptoms, injuries, mental disorders, and causes of death",
+        "ICD-11 is the most current global standard — used by doctors, hospitals, and insurance systems worldwide",
+        "Covers: infectious diseases, cancers, injuries, poisoning, mental health, pregnancy complications, and more",
+        "Example codes: CA40 = Type 2 diabetes, NF03 = Laceration of skin (cut), ED90 = Anaphylaxis (severe allergy)",
+        "This is the closest thing to a 'world index of all diseases' — if it affects a human, it has an ICD-11 code",
+        "Used for: diagnosis reporting, death certificates, hospital billing, global health statistics",
+        "Reference: https://icd.who.int/en"
+      ]
+    },
+    {
+      title: "🧾 ICD-10 — Older Standard (Still Widely Used)",
+      items: [
+        "Predecessor to ICD-11, developed by WHO",
+        "Contains approximately 14,000 base codes (expanded to 70,000+ with country-specific extensions like ICD-10-CM used in the USA)",
+        "Still used in hospitals, clinics, and insurance billing systems across many countries",
+        "Example codes: S51 = Open wound of forearm, T30 = Burn of unspecified body region, Z99 = Long-term health conditions",
+        "Being gradually replaced by ICD-11, but ICD-10 will remain in use for years during the transition",
+        "ICD-10-CM (Clinical Modification) is the US version with expanded specificity for billing and records"
+      ]
+    },
+    {
+      title: "🧠 SNOMED CT — Systematized Nomenclature of Medicine",
+      items: [
+        "The most comprehensive clinical medical terminology system in the world",
+        "Contains 300,000+ medical concepts including diseases, symptoms, procedures, anatomy, and their relationships",
+        "Unlike ICD which classifies diseases, SNOMED CT describes clinical meaning — it captures HOW concepts relate to each other",
+        "Example: SNOMED knows that 'laceration' is a type of 'wound', which is a type of 'injury to skin structure'",
+        "Used by: advanced AI medical systems, electronic health records (EHR), clinical decision support tools",
+        "Maintained by SNOMED International — used in over 80 countries",
+        "Combined with ICD-11, SNOMED CT forms the backbone of modern AI-assisted medical diagnosis systems",
+        "Free for use in low/middle-income countries — reference: https://www.snomed.org"
+      ]
+    }
   ];
 
   // ===== First-aid rules for fallback =====
@@ -399,7 +436,6 @@ Disclaimer: ${disclaimer}
 
           {(selectedImage || capturedImage) && (
             <div className="image-preview">
-              <h3>Selected Image:</h3>
               <img
                 src={selectedImage ? URL.createObjectURL(selectedImage) : capturedImage}
                 alt="Selected Injury"
@@ -436,6 +472,9 @@ Disclaimer: ${disclaimer}
           <div className="guide-content">
             <button className="close-btn" onClick={() => setShowGuide(false)}>x</button>
             <h1>First Aid Guide</h1>
+            <p style={{ fontSize: "0.85rem", color: "#555", marginTop: "-10px", marginBottom: "15px" }}>
+              Includes WHO ICD-11, ICD-10 & SNOMED CT medical index references
+            </p>
 
             <input
               type="text"
