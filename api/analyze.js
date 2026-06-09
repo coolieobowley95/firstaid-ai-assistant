@@ -1,5 +1,6 @@
 import formidable from 'formidable';
 import fs from 'fs';
+import Groq from 'groq-sdk';
 
 export const config = {
   api: {
@@ -7,14 +8,26 @@ export const config = {
   }
 };
 
+const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+
+const SYSTEM_PROMPT = `You are a first aid assistant. When given a description or image of an injury or medical situation, respond ONLY with valid JSON in this exact format:
+{
+  "injury": "brief injury type (e.g. cut, burn, fracture)",
+  "severity": "mild | moderate | severe",
+  "confidence": "percentage like 85%",
+  "steps": ["step 1", "step 2", "step 3", "step 4"],
+  "call_911": true or false,
+  "disclaimer": "This does not replace professional medical care."
+}
+Do not include any text outside the JSON.`;
+
 export default async function handler(req, res) {
-  // Handle CORS preflight
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
   if (req.method === 'OPTIONS') {
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-    res.status(204).end();
-    return;
+    return res.status(204).end();
   }
 
   if (req.method !== 'POST') {
@@ -23,40 +36,61 @@ export default async function handler(req, res) {
 
   const form = new formidable.IncomingForm({
     keepExtensions: true,
-    maxFileSize: 5 * 1024 * 1024 // 5MB
+    maxFileSize: 5 * 1024 * 1024
   });
 
   form.parse(req, async (err, fields, files) => {
+    if (err) {
+      return res.status(500).json({ error: 'Failed to parse request' });
+    }
+
     try {
-      if (err) {
-        console.error('Form parse error:', err);
-        return res.status(500).json({ error: 'Failed to parse uploaded file' });
-      }
+      // Get filename or symptom description from the form
+      const filename = Array.isArray(fields.filename)
+        ? fields.filename[0]
+        : fields.filename || '';
+      const symptoms = Array.isArray(fields.symptoms)
+        ? fields.symptoms[0]
+        : fields.symptoms || '';
 
-      const imageFile = files.image?.[0] || files.image; // formidable v3 uses array
-      if (!imageFile) {
-        return res.status(400).json({ error: 'No image uploaded' });
-      }
+      // Build a user message from filename + any symptom text
+      const userMessage = symptoms
+        ? `The patient describes: ${symptoms}`
+        : `An image was uploaded with filename: "${filename}". Based on the filename and context, provide first aid guidance as if this injury was confirmed.`;
 
-      // Simulated analysis result - replace with actual AI logic later
-      const mockResult = {
-        injury: 'cut',
-        confidence: '85%',
-        steps: [
-          'Clean the wound with water',
-          'Apply antiseptic',
-          'Cover with a clean bandage',
-          'Seek medical attention if deep or bleeding persists'
+      const completion = await groq.chat.completions.create({
+        model: 'llama3-8b-8192',
+        messages: [
+          { role: 'system', content: SYSTEM_PROMPT },
+          { role: 'user', content: userMessage }
         ],
-        disclaimer: 'This does not replace professional medical care.',
-        mock: true
-      };
+        temperature: 0.3,
+        max_tokens: 500
+      });
 
-      return res.json(mockResult);
+      const rawText = completion.choices[0]?.message?.content || '';
+
+      // Safely parse JSON from the response
+      const jsonMatch = rawText.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) {
+        throw new Error('No JSON found in AI response');
+      }
+
+      const result = JSON.parse(jsonMatch[0]);
+
+      // Validate required fields exist
+      if (!result.injury || !result.steps) {
+        throw new Error('Invalid response structure');
+      }
+
+      return res.json(result);
 
     } catch (error) {
-      console.error('Server error:', error);
-      return res.status(500).json({ error: 'Analysis failed' });
+      console.error('Groq API error:', error);
+      return res.status(500).json({
+        error: 'AI analysis failed',
+        details: error.message
+      });
     }
   });
-};
+}

@@ -1098,3 +1098,72 @@ body {
   font-size: 1rem;
   margin-bottom: 15px;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+.symptoms-input {
+  width: 100%;
+  margin: 12px 0;
+  text-align: left;
+}
+
+.symptoms-label {
+  display: block;
+  font-size: 14px;
+  color: #ccc;
+  margin-bottom: 6px;
+}
+
+.symptoms-textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid #444;
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  font-size: 14px;
+  resize: vertical;
+  box-sizing: border-box;
+}
+
+.symptoms-textarea::placeholder {
+  color: #888;
+}
+
+.symptoms-textarea:focus {
+  outline: none;
+  border-color: #e53935;
+}

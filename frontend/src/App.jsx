@@ -62,10 +62,9 @@ function FirstAidApp({ onSignOut }) {
   const [showCamera, setShowCamera] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [openSection, setOpenSection] = useState(null);
-  // New: State for tip messages and helper hints
   const [tipMessage, setTipMessage] = useState("");
-  // New: State for injury hint based on filename
   const [injuryHint, setInjuryHint] = useState("");
+  const [symptoms, setSymptoms] = useState(""); // NEW
 
   const fileInputRef = useRef(null);
   const videoRef = useRef(null);
@@ -120,6 +119,7 @@ function FirstAidApp({ onSignOut }) {
     setAnalysisResult("");
     setTipMessage("");
     setInjuryHint("");
+    setSymptoms(""); // NEW
   };
 
   const handleFileClick = () => fileInputRef.current.click();
@@ -131,13 +131,13 @@ function FirstAidApp({ onSignOut }) {
       setCapturedImage(null);
       setAnalysisResult("");
       setInjuryHint("");
-      // New: Set tip message with naming advice and injury-specific hints
+      setSymptoms(""); // NEW: reset symptoms on new image
       const filename = file.name.toLowerCase();
-      let tip = "Tip: For better detection, name your image after the injury. Example: cuts.png, burns.jpg, fracture.png";
+      let tip = "Tip: For better detection, describe the injury in the box below or name your image after the injury. Example: cuts.png, burns.jpg";
       const keywords = ['cut', 'bleed', 'burn', 'fracture', 'sprain'];
       const matched = keywords.filter(k => filename.includes(k));
       if (matched.length > 0) {
-        const injury = matched[0]; // take first match
+        const injury = matched[0];
         const hints = {
           cut: "For cuts: Clean with water, apply antiseptic, and cover with a bandage.",
           bleed: "For bleeding: Apply firm pressure with a clean cloth, elevate if possible.",
@@ -156,8 +156,9 @@ function FirstAidApp({ onSignOut }) {
     setSelectedImage(null);
     setCapturedImage(null);
     setAnalysisResult("");
-    setTipMessage(""); // Clear tip for captured images
+    setTipMessage("");
     setInjuryHint("");
+    setSymptoms(""); // NEW
 
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ video: true });
@@ -168,7 +169,6 @@ function FirstAidApp({ onSignOut }) {
     }
   };
 
-  // New: Cancel image function to reset selection
   const handleCancelImage = () => {
     setSelectedImage(null);
     setCapturedImage(null);
@@ -176,6 +176,7 @@ function FirstAidApp({ onSignOut }) {
     setTipMessage("");
     setInjuryHint("");
     setShowCamera(false);
+    setSymptoms(""); // NEW
   };
 
   const handleCapture = () => {
@@ -189,7 +190,7 @@ function FirstAidApp({ onSignOut }) {
     stream.getTracks().forEach((track) => track.stop());
   };
 
-  // ======== New handleAnalyzeClick for Gemini ========
+  // ======== Analyze Click ========
   const handleAnalyzeClick = async () => {
     const imageFile = selectedImage;
     const imageData = capturedImage;
@@ -202,7 +203,6 @@ function FirstAidApp({ onSignOut }) {
     setLoading(true);
     setAnalysisResult("AI analyzing...");
 
-    // New: Check filename for injury keywords and set hint
     const filename = imageFile ? imageFile.name.toLowerCase() : "";
     const keywords = ['cut', 'bleed', 'burn', 'fracture', 'sprain'];
     const matchedKeyword = keywords.find(k => filename.includes(k));
@@ -225,13 +225,15 @@ function FirstAidApp({ onSignOut }) {
         formData.append('image', imageFile);
         formData.append('filename', imageFile.name);
       } else {
-        // For captured image, convert dataURL to blob
         const response = await fetch(imageData);
         const blob = await response.blob();
         const file = new File([blob], 'captured.png', { type: 'image/png' });
         formData.append('image', file);
         formData.append('filename', 'captured.png');
       }
+
+      // NEW: append symptoms text to the request
+      formData.append('symptoms', symptoms);
 
       const response = await fetch("/api/analyze", {
         method: "POST",
@@ -245,12 +247,15 @@ function FirstAidApp({ onSignOut }) {
 
       const result = await response.json();
 
+      // NEW: handle call_911 and severity fields from Groq response
       const stepsText = result.steps.map(step => `- ${step}`).join("\n");
+      const severityLine = result.severity ? `Severity: ${result.severity}\n` : "";
+      const call911Line = result.call_911 ? `\n🚨 CALL 911 IMMEDIATELY\n` : "";
 
       const resultText = `
 Diagnosis: Possible ${result.injury} detected
 Confidence: ${result.confidence}
-
+${severityLine}${call911Line}
 Recommended First Aid:
 ${stepsText}
 
@@ -261,19 +266,13 @@ Disclaimer: ${result.disclaimer}
 
     } catch (err) {
       console.error("Error analyzing image:", err);
-      // Fallback: generate simulated response
-      const filename = imageFile ? imageFile.name.toLowerCase() : 'captured.png';
-      const keywords = ['cut', 'bleed', 'burn', 'fracture', 'sprain'];
-      const matched = keywords.find(k => filename.includes(k));
+      // Fallback to keyword-based rules
+      const fname = imageFile ? imageFile.name.toLowerCase() : 'captured.png';
+      const kws = ['cut', 'bleed', 'burn', 'fracture', 'sprain'];
+      const matched = kws.find(k => fname.includes(k));
       let injury;
       if (matched) {
-        const injuryMap = {
-          cut: 'cut',
-          bleed: 'bleeding',
-          burn: 'burn',
-          fracture: 'cut', // map to cut
-          sprain: 'cut'    // map to cut
-        };
+        const injuryMap = { cut: 'cut', bleed: 'bleeding', burn: 'burn', fracture: 'cut', sprain: 'cut' };
         injury = injuryMap[matched];
       } else {
         const injuries = ['burn', 'cut', 'bleeding'];
@@ -282,7 +281,6 @@ Disclaimer: ${result.disclaimer}
       const confidence = Math.floor(70 + Math.random() * 25) + '%';
       const steps = rules[injury];
       const disclaimer = "⚠️ Simulated response. This does not replace professional medical care.";
-
       const stepsText = steps.map(step => `- ${step}`).join("\n");
       const resultText = `
 Diagnosis: Possible ${injury} detected
@@ -302,7 +300,6 @@ Disclaimer: ${disclaimer}
   // ======== Find Hospital ========
   const handleFindHospital = () => {
     if (!navigator.geolocation) return alert("Geolocation not supported");
-
     navigator.geolocation.getCurrentPosition(({ coords }) => {
       const url = `https://www.google.com/maps/search/hospital/@${coords.latitude},${coords.longitude},15z`;
       window.open(url, "_blank");
@@ -355,7 +352,6 @@ Disclaimer: ${disclaimer}
               <button className="primary-btn" onClick={handleUseCamera}>
                 <FaCamera style={{ marginRight: "6px" }} /> Use Camera
               </button>
-              {/* New: Small guidance text */}
               <p className="upload-guidance">Supported example names: burns.jpg, cuts.png, fracture.jpg</p>
             </div>
           )}
@@ -376,6 +372,22 @@ Disclaimer: ${disclaimer}
             </div>
           )}
 
+          {/* NEW: Symptoms textarea — shows once image is selected */}
+          {(selectedImage || capturedImage) && (
+            <div className="symptoms-input">
+              <label className="symptoms-label">
+                Describe the injury or symptoms (recommended for better AI results):
+              </label>
+              <textarea
+                className="symptoms-textarea"
+                placeholder="e.g. Deep cut on left hand, bleeding heavily for 5 minutes..."
+                value={symptoms}
+                onChange={(e) => setSymptoms(e.target.value)}
+                rows={3}
+              />
+            </div>
+          )}
+
           {(selectedImage || capturedImage) && (
             <button className="analyze-btn" onClick={handleAnalyzeClick} disabled={loading}>
               {loading ? "Analyzing..." : "Analyze"}
@@ -389,21 +401,18 @@ Disclaimer: ${disclaimer}
                 src={selectedImage ? URL.createObjectURL(selectedImage) : capturedImage}
                 alt="Selected Injury"
               />
-              {/* New: Cancel Image button with icon */}
               <button className="cancel-btn" onClick={handleCancelImage}>
                 <FaTimes style={{ marginRight: "6px" }} /> Cancel Image
               </button>
             </div>
           )}
 
-          {/* New: Display tip message if available */}
           {tipMessage && (
             <div className="tip-message">
               <pre>{tipMessage}</pre>
             </div>
           )}
 
-          {/* New: Display injury hint if available */}
           {injuryHint && (
             <div className="injury-hint">
               <p>{injuryHint}</p>
