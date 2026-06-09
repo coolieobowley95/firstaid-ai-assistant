@@ -9,7 +9,7 @@ import fs from "fs";
 dotenv.config();
 
 const app = express();
-app.use(cors());
+app.use(cors({ origin: process.env.CORS_ORIGIN || true }));
 app.use(express.json({ limit: "20mb" })); // allow large images
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
@@ -59,7 +59,11 @@ app.post("/api/analyze", async (req, res) => {
 
   if (contentType.startsWith("multipart/form-data")) {
     // Parse file upload using formidable
-    const form = new formidable.IncomingForm({ keepExtensions: true });
+    const form = new formidable.IncomingForm({
+      keepExtensions: true,
+      maxFileSize: 5 * 1024 * 1024,
+      filter: ({ mimetype }) => ["image/jpeg", "image/png", "image/webp"].includes(mimetype || ""),
+    });
 
     const parseResult = await new Promise((resolve, reject) => {
       form.parse(req, (err, fields, files) => {
@@ -97,14 +101,14 @@ app.post("/api/analyze", async (req, res) => {
   }
 
   try {
-    console.log("Sending image to Gemini Vision API...");
-
     const geminiResponse = await fetch(
-      "https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=" +
-        GEMINI_API_KEY,
+      "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent",
       {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "x-goog-api-key": GEMINI_API_KEY,
+        },
         body: JSON.stringify({
           contents: [
             {
@@ -130,10 +134,7 @@ Then give step-by-step first aid instructions.`,
       }
     );
 
-    console.log("Gemini HTTP status:", geminiResponse.status);
-
     const rawText = await geminiResponse.text();
-    console.log("Gemini raw response:", rawText);
 
     let aiText = "";
 
@@ -145,8 +146,6 @@ Then give step-by-step first aid instructions.`,
       console.warn("Could not parse Gemini JSON - using mock");
       return res.json(randomMock());
     }
-
-    console.log("Extracted AI text:", aiText);
 
     // ===== Flexible extraction =====
     let injury = "unknown";

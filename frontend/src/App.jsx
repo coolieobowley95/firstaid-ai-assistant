@@ -1,4 +1,3 @@
-import backgroundImage from "./assets/background.png";
 import { useState, useRef } from "react";
 import { 
   FaCamera, 
@@ -73,8 +72,8 @@ function FirstAidApp({ onSignOut }) {
   // ======== Full First Aid Guide (Accordion) ========
   const guideTopics = [
     { title: "Cuts and Wounds", items: ["Clean your hands thoroughly with soap and water", "Rinse the wound gently with clean water", "Apply antibiotic ointment if available", "Cover with a sterile bandage", "For severe bleeding: apply direct pressure and seek emergency care"] },
-    { title: "Burns", items: ["Cool the burn under cool (not cold) running water for 10–20 minutes", "Do not apply ice directly to the skin", "Cover loosely with sterile gauze", "Seek medical care for large or blistering burns"] },
-    { title: "CPR and Breathing", items: ["Check responsiveness and breathing", "Call emergency services immediately", "Begin chest compressions at a rate of 100–120 per minute", "Provide rescue breaths if trained"] },
+    { title: "Burns", items: ["Cool the burn under cool (not cold) running water for 10-20 minutes", "Do not apply ice directly to the skin", "Cover loosely with sterile gauze", "Seek medical care for large or blistering burns"] },
+    { title: "CPR and Breathing", items: ["Check responsiveness and breathing", "Call emergency services immediately", "Begin chest compressions at a rate of 100-120 per minute", "Provide rescue breaths if trained"] },
     { title: "Choking", items: ["Encourage coughing if the person can still breathe", "Perform abdominal thrusts (Heimlich maneuver) if trained", "Call emergency services if the object cannot be removed"] },
     { title: "Fractures and Sprains", items: ["Immobilize the injured area", "Apply ice to reduce swelling", "Do not attempt to realign broken bones", "Seek medical evaluation promptly"] },
     { title: "Head Injuries", items: ["Keep the person still and calm", "Monitor for confusion, vomiting, or loss of consciousness", "Seek emergency care for severe symptoms"] },
@@ -92,7 +91,7 @@ function FirstAidApp({ onSignOut }) {
   // ===== First-aid rules for fallback =====
   const rules = {
     burn: [
-      "Cool the burn under running water for 10–20 minutes",
+      "Cool the burn under running water for 10-20 minutes",
       "Cover with a sterile, non-stick dressing",
       "Do NOT apply butter or toothpaste",
       "Seek medical help if severe or blistered",
@@ -164,7 +163,7 @@ function FirstAidApp({ onSignOut }) {
       const stream = await navigator.mediaDevices.getUserMedia({ video: true });
       videoRef.current.srcObject = stream;
       videoRef.current.play();
-    } catch (err) {
+    } catch {
       alert("Cannot access camera");
     }
   };
@@ -247,15 +246,19 @@ function FirstAidApp({ onSignOut }) {
 
       const result = await response.json();
 
-      // NEW: handle call_911 and severity fields from Groq response
+      if (!Array.isArray(result.steps) || result.steps.length === 0) {
+        throw new Error("Analysis response did not include first aid steps");
+      }
+
+      const providerLine = result.provider ? `Provider: ${result.provider}\n` : "";
       const stepsText = result.steps.map(step => `- ${step}`).join("\n");
       const severityLine = result.severity ? `Severity: ${result.severity}\n` : "";
-      const call911Line = result.call_911 ? `\n🚨 CALL 911 IMMEDIATELY\n` : "";
+      const call911Line = result.call_911 ? `\nCALL 911 IMMEDIATELY\n` : "";
 
       const resultText = `
 Diagnosis: Possible ${result.injury} detected
 Confidence: ${result.confidence}
-${severityLine}${call911Line}
+${providerLine}${severityLine}${call911Line}
 Recommended First Aid:
 ${stepsText}
 
@@ -280,7 +283,7 @@ Disclaimer: ${result.disclaimer}
       }
       const confidence = Math.floor(70 + Math.random() * 25) + '%';
       const steps = rules[injury];
-      const disclaimer = "⚠️ Simulated response. This does not replace professional medical care.";
+      const disclaimer = "Simulated response. This does not replace professional medical care.";
       const stepsText = steps.map(step => `- ${step}`).join("\n");
       const resultText = `
 Diagnosis: Possible ${injury} detected
@@ -372,7 +375,7 @@ Disclaimer: ${disclaimer}
             </div>
           )}
 
-          {/* NEW: Symptoms textarea — shows once image is selected */}
+          {/* Symptoms textarea shows once image is selected */}
           {(selectedImage || capturedImage) && (
             <div className="symptoms-input">
               <label className="symptoms-label">
@@ -431,7 +434,7 @@ Disclaimer: ${disclaimer}
       {showGuide && (
         <div className="guide-modal">
           <div className="guide-content">
-            <button className="close-btn" onClick={() => setShowGuide(false)}>×</button>
+            <button className="close-btn" onClick={() => setShowGuide(false)}>x</button>
             <h1>First Aid Guide</h1>
 
             <input

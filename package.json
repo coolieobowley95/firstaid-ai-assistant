@@ -2,8 +2,13 @@
   "name": "ai-first-aid-assistant---gemini---final",
   "version": "1.0.0",
   "private": true,
+  "type": "module",
   "scripts": {
-    "start": "concurrently \"npm run dev --prefix frontend\" \"npm run dev --prefix backend\""
+    "dev": "concurrently \"npm run dev --prefix frontend\" \"npm run dev --prefix backend\"",
+    "start": "npm run dev",
+    "build": "npm install --prefix frontend && npm run build --prefix frontend",
+    "lint": "npm run lint --prefix frontend",
+    "test": "npm test --prefix frontend"
   },
   "dependencies": {
     "formidable": "^3.5.4",

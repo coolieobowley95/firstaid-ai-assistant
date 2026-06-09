@@ -141,6 +141,21 @@ This will start both the frontend and backend components of the application.
 
 The project is automatically deployed through **Vercel** when changes are pushed to the GitHub repository.
 
+## Required Vercel Environment Variables
+
+Set these in the Vercel project settings before deploying:
+
+* `GEMINI_API_KEY` - Google Gemini API key used by the serverless `/api/analyze` route for image analysis.
+* `GROQ_API_KEY` - Groq API key used as the secondary AI provider if Gemini is unavailable.
+
+Optional variables:
+
+* `GEMINI_MODEL` - Gemini model override. Defaults to `gemini-2.5-flash`.
+* `GROQ_MODEL` - Groq model override. Defaults to `llama-3.1-8b-instant`.
+* `CORS_ORIGIN` - Allowed API origin. Defaults to `*` for simple same-project deployment.
+
+Never commit `.env` files or API keys. The frontend calls `/api/analyze`; provider keys must remain server-side only.
+
 Deployment Domains:
 
 * https://firstaid-ai-assistant.vercel.app
