@@ -1,5 +1,10 @@
+// Netlify/Vercel shared function. Provides a serverless /api/analyze endpoint.
+// Gemini is the primary vision provider, Groq is a text-only fallback.
+// A local ICD-11 lookup is applied to enrich the response with ICD codes.
+
 import formidable from "formidable";
 import Groq from "groq-sdk";
+import { findICD } from "../backend/utils/icdLookup.js";
 
 export const config = {
   api: {
@@ -9,6 +14,19 @@ export const config = {
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024;
 const ALLOWED_MIME_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
+
+// ===== Provider configuration & verification logging =====
+console.log("Gemini API key present:", !!process.env.GEMINI_API_KEY);
+console.log("Trying Gemini model:", process.env.GEMINI_MODEL || "gemini-2.5-flash");
+
+// Validation: GEMINI_API_KEY must be set. The actual request-time guard
+// inside analyzeWithGemini() surfaces this as a per-request provider error
+// so the function can still respond (with Groq as a fallback) instead of
+// crashing the serverless cold start.
+if (!process.env.GEMINI_API_KEY) {
+  console.warn("GEMINI_API_KEY is not set in environment; Gemini will be skipped and Groq used as fallback.");
+}
+
 const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-2.5-flash";
 const GROQ_MODEL = process.env.GROQ_MODEL || "llama-3.1-8b-instant";
 
@@ -163,6 +181,23 @@ function normalizeResult(result, provider) {
     throw new Error("AI response did not include enough first aid steps.");
   }
 
+  // Enrich with ICD info. Backend lookup takes priority; AI-provided
+  // ICD info is used as a fallback only.
+  let icd_code = null;
+  let icd_version = null;
+  let icd_description = null;
+
+  const lookup = findICD(injury);
+  if (lookup) {
+    icd_code = lookup.icd_code;
+    icd_version = lookup.icd_version;
+    icd_description = lookup.description;
+  } else if (result?.icd_code) {
+    icd_code = sanitizeText(result.icd_code, 16) || null;
+    icd_version = sanitizeText(result.icd_version, 16) || "ICD-11";
+    icd_description = sanitizeText(result.icd_description, 240) || null;
+  }
+
   return {
     provider,
     injury,
@@ -173,6 +208,9 @@ function normalizeResult(result, provider) {
     disclaimer:
       sanitizeText(result?.disclaimer, 180) ||
       "This does not replace professional medical care.",
+    icd_code,
+    icd_version,
+    icd_description,
   };
 }
 
@@ -298,11 +336,20 @@ export default async function handler(req, res) {
 
   const providerErrors = [];
 
-  for (const provider of [analyzeWithGemini, analyzeWithGroq]) {
+  // Ordered list: Gemini is the primary vision provider, Groq is a fallback.
+  const providers = [
+    { name: "Gemini", fn: analyzeWithGemini },
+    { name: "Groq", fn: analyzeWithGroq },
+  ];
+
+  for (const provider of providers) {
     try {
-      return res.status(200).json(await provider(payload));
+      const result = await provider.fn(payload);
+      console.log(`Provider ${provider.name} succeeded.`);
+      return res.status(200).json(result);
     } catch (error) {
-      providerErrors.push(error.message);
+      console.error(`Provider ${provider.name} failed:`, error.message);
+      providerErrors.push({ provider: provider.name, message: error.message });
     }
   }
 
