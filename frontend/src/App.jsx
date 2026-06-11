@@ -9,7 +9,6 @@ import {
   FaTimes
 } from "react-icons/fa";
 import Login from "./Login.jsx";
-import { FIRST_AID_RULES } from "../../shared/firstAidRules.js";
 import "./App.css";
 
 // ======== Keyword helpers ========
@@ -74,7 +73,27 @@ function FirstAidApp({ onSignOut }) {
     { title: "Drowning / Near-Drowning", items: ["Remove from water if safe to do so", "Check breathing and circulation", "Begin CPR if necessary", "Call emergency services immediately"] }
   ];
 
-  const rules = FIRST_AID_RULES;
+  // Basic first-aid rules for client-side fallback (also in shared/firstAidRules.js).
+  const rules = {
+    burn: [
+      "Cool the burn under running water for 10-20 minutes",
+      "Cover with a sterile, non-stick dressing",
+      "Do NOT apply butter or toothpaste",
+      "Seek medical help if severe or blistered",
+    ],
+    cut: [
+      "Clean the wound with water",
+      "Apply antiseptic",
+      "Cover with a clean bandage",
+      "Seek medical attention if deep or bleeding persists",
+    ],
+    bleeding: [
+      "Apply firm pressure with a clean cloth",
+      "Elevate the affected limb if possible",
+      "Keep pressure until bleeding stops",
+      "Seek emergency care if heavy bleeding",
+    ],
+  };
 
   // ======== Image Upload / Camera ========
   const handleInjuryDetectionClick = () => {
