@@ -5,6 +5,7 @@ import dotenv from "dotenv";
 import fetch from "node-fetch";
 import formidable from "formidable";
 import fs from "fs";
+import { FIRST_AID_RULES } from "../shared/firstAidRules.js";
 
 dotenv.config();
 
@@ -14,27 +15,7 @@ app.use(express.json({ limit: "20mb" })); // allow large images
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
-// ===== First-aid rules =====
-const rules = {
-  burn: [
-    "Cool the burn under running water for 10-20 minutes",
-    "Cover with a sterile, non-stick dressing",
-    "Do NOT apply butter or toothpaste",
-    "Seek medical help if severe or blistered",
-  ],
-  cut: [
-    "Clean the wound with water",
-    "Apply antiseptic",
-    "Cover with a clean bandage",
-    "Seek medical attention if deep or bleeding persists",
-  ],
-  bleeding: [
-    "Apply firm pressure with a clean cloth",
-    "Elevate the affected limb if possible",
-    "Keep pressure until bleeding stops",
-    "Seek emergency care if heavy bleeding",
-  ],
-};
+const rules = FIRST_AID_RULES;
 
 // ===== Dynamic mock fallback =====
 function randomMock() {
