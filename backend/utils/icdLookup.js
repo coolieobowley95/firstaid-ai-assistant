@@ -49,11 +49,14 @@ function loadDatabase() {
   if (cachedDb) return cachedDb;
 
   // Try loading from disk first; fall back to embedded copy.
+  const dataPath = path.resolve(__dirname, "..", "data", "icd11.json");
   try {
-    const dataPath = path.resolve(__dirname, "..", "data", "icd11.json");
     const raw = fs.readFileSync(dataPath, "utf-8");
     cachedDb = JSON.parse(raw);
-  } catch {
+  } catch (err) {
+    if (err.code !== "ENOENT") {
+      console.error("ICD database file exists but could not be loaded:", err.message);
+    }
     cachedDb = EMBEDDED_DB;
   }
 

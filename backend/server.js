@@ -134,6 +134,14 @@ Then give step-by-step first aid instructions.`,
       }
     );
 
+    if (!geminiResponse.ok) {
+      console.error(`Gemini API returned HTTP ${geminiResponse.status}`);
+      return res.status(502).json({
+        error: "AI service returned an error. Please try again later.",
+        fallback: randomMock(),
+      });
+    }
+
     const rawText = await geminiResponse.text();
 
     let aiText = "";
@@ -143,8 +151,11 @@ Then give step-by-step first aid instructions.`,
       aiText =
         data?.candidates?.[0]?.content?.parts?.[0]?.text || "";
     } catch (err) {
-      console.warn("Could not parse Gemini JSON - using mock");
-      return res.json(randomMock());
+      console.error("Failed to parse Gemini response as JSON:", err.message, "Raw:", rawText.slice(0, 200));
+      return res.status(502).json({
+        error: "Could not parse AI response. Please try again.",
+        fallback: randomMock(),
+      });
     }
 
     // ===== Flexible extraction =====
@@ -158,8 +169,12 @@ Then give step-by-step first aid instructions.`,
     if (confidenceMatch) confidence = confidenceMatch[1] + "%";
 
     if (!rules[injury]) {
-      console.warn("AI unclear - using mock instead");
-      return res.json(randomMock());
+      console.warn("AI returned unrecognized injury type:", injury);
+      return res.status(200).json({
+        mock: true,
+        warning: "AI returned an unrecognized injury type. Showing general guidance.",
+        ...randomMock(),
+      });
     }
 
     // ✅ Send real structured result
@@ -171,9 +186,11 @@ Then give step-by-step first aid instructions.`,
       disclaimer: "This does not replace professional medical care.",
     });
   } catch (err) {
-    console.error("Gemini API error:", err);
-    console.log("Using mock fallback");
-    res.json(randomMock());
+    console.error("Gemini API error:", err.message || err);
+    res.status(502).json({
+      error: "AI analysis failed. Please try again later.",
+      fallback: randomMock(),
+    });
   }
 });
 
