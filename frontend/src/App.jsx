@@ -88,28 +88,6 @@ function FirstAidApp({ onSignOut }) {
     { title: "Drowning / Near-Drowning", items: ["Remove from water if safe to do so", "Check breathing and circulation", "Begin CPR if necessary", "Call emergency services immediately"] }
   ];
 
-  // ===== First-aid rules for fallback =====
-  const rules = {
-    burn: [
-      "Cool the burn under running water for 10-20 minutes",
-      "Cover with a sterile, non-stick dressing",
-      "Do NOT apply butter or toothpaste",
-      "Seek medical help if severe or blistered",
-    ],
-    cut: [
-      "Clean the wound with water",
-      "Apply antiseptic",
-      "Cover with a clean bandage",
-      "Seek medical attention if deep or bleeding persists",
-    ],
-    bleeding: [
-      "Apply firm pressure with a clean cloth",
-      "Elevate the affected limb if possible",
-      "Keep pressure until bleeding stops",
-      "Seek emergency care if heavy bleeding",
-    ],
-  };
-
   // ======== Image Upload / Camera ========
   const handleInjuryDetectionClick = () => {
     setShowDetectionOptions(true);
@@ -163,8 +141,16 @@ function FirstAidApp({ onSignOut }) {
       const stream = await navigator.mediaDevices.getUserMedia({ video: true });
       videoRef.current.srcObject = stream;
       videoRef.current.play();
-    } catch {
-      alert("Cannot access camera");
+    } catch (err) {
+      console.error("Camera access failed:", err);
+      const reason =
+        err.name === "NotAllowedError"
+          ? "Camera permission was denied. Please allow camera access in your browser settings."
+          : err.name === "NotFoundError"
+            ? "No camera was found on this device."
+            : `Cannot access camera: ${err.message}`;
+      alert(reason);
+      setShowCamera(false);
     }
   };
 
@@ -240,8 +226,14 @@ function FirstAidApp({ onSignOut }) {
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Analysis failed");
+        let errorMessage = `Analysis failed (HTTP ${response.status})`;
+        try {
+          const errorData = await response.json();
+          if (errorData.error) errorMessage = errorData.error;
+        } catch {
+          // response body was not JSON; keep the default message
+        }
+        throw new Error(errorMessage);
       }
 
       const result = await response.json();
@@ -272,32 +264,9 @@ Disclaimer: ${result.disclaimer}
 
     } catch (err) {
       console.error("Error analyzing image:", err);
-      // Fallback to keyword-based rules
-      const fname = imageFile ? imageFile.name.toLowerCase() : 'captured.png';
-      const kws = ['cut', 'bleed', 'burn', 'fracture', 'sprain'];
-      const matched = kws.find(k => fname.includes(k));
-      let injury;
-      if (matched) {
-        const injuryMap = { cut: 'cut', bleed: 'bleeding', burn: 'burn', fracture: 'cut', sprain: 'cut' };
-        injury = injuryMap[matched];
-      } else {
-        const injuries = ['burn', 'cut', 'bleeding'];
-        injury = injuries[Math.floor(Math.random() * injuries.length)];
-      }
-      const confidence = Math.floor(70 + Math.random() * 25) + '%';
-      const steps = rules[injury];
-      const disclaimer = "Simulated response. This does not replace professional medical care.";
-      const stepsText = steps.map(step => `- ${step}`).join("\n");
-      const resultText = `
-Diagnosis: Possible ${injury} detected
-Confidence: ${confidence}
-
-Recommended First Aid:
-${stepsText}
-
-Disclaimer: ${disclaimer}
-      `.trim();
-      setAnalysisResult(resultText);
+      setAnalysisResult(
+        `Analysis failed: ${err.message}\n\nPlease try again or consult a medical professional.`
+      );
     } finally {
       setLoading(false);
     }
@@ -306,10 +275,22 @@ Disclaimer: ${disclaimer}
   // ======== Find Hospital ========
   const handleFindHospital = () => {
     if (!navigator.geolocation) return alert("Geolocation not supported");
-    navigator.geolocation.getCurrentPosition(({ coords }) => {
-      const url = `https://www.google.com/maps/search/hospital/@${coords.latitude},${coords.longitude},15z`;
-      window.open(url, "_blank");
-    });
+    navigator.geolocation.getCurrentPosition(
+      ({ coords }) => {
+        const url = `https://www.google.com/maps/search/hospital/@${coords.latitude},${coords.longitude},15z`;
+        window.open(url, "_blank");
+      },
+      (err) => {
+        console.error("Geolocation error:", err);
+        const reason =
+          err.code === err.PERMISSION_DENIED
+            ? "Location permission was denied. Please enable location access to find nearby hospitals."
+            : err.code === err.POSITION_UNAVAILABLE
+              ? "Your location could not be determined. Please try again."
+              : "Finding your location timed out. Please try again.";
+        alert(reason);
+      }
+    );
   };
 
   const filterGuide = (title) => title.toLowerCase().includes(searchQuery.toLowerCase());
