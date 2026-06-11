@@ -15,9 +15,7 @@ export const config = {
 const MAX_FILE_SIZE = 5 * 1024 * 1024;
 const ALLOWED_MIME_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 
-// ===== Provider configuration & verification logging =====
-console.log("Gemini API key present:", !!process.env.GEMINI_API_KEY);
-console.log("Trying Gemini model:", process.env.GEMINI_MODEL || "gemini-2.5-flash");
+// ===== Provider configuration =====
 
 // Validation: GEMINI_API_KEY must be set. The actual request-time guard
 // inside analyzeWithGemini() surfaces this as a per-request provider error
@@ -85,11 +83,25 @@ const FALLBACK_RULES = {
   },
 };
 
-function setCommonHeaders(res) {
-  res.setHeader("Access-Control-Allow-Origin", process.env.CORS_ORIGIN || "*");
+const ALLOWED_ORIGINS = process.env.CORS_ORIGIN
+  ? process.env.CORS_ORIGIN.split(",").map((o) => o.trim())
+  : [
+      "https://firstaid-ai-assistant.vercel.app",
+      "https://firstaid-ai-assistant-git-main-coolieobowley95s-projects.vercel.app",
+    ];
+
+function getAllowedOrigin(req) {
+  const origin = req.headers["origin"] || "";
+  return ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0];
+}
+
+function setCommonHeaders(res, req) {
+  res.setHeader("Access-Control-Allow-Origin", getAllowedOrigin(req));
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+  res.setHeader("Vary", "Origin");
   res.setHeader("Cache-Control", "no-store");
+  res.setHeader("X-Content-Type-Options", "nosniff");
 }
 
 function firstValue(value) {
@@ -317,7 +329,7 @@ Note: You cannot see the image. Use the filename and symptoms to give safe, cons
 }
 
 export default async function handler(req, res) {
-  setCommonHeaders(res);
+  setCommonHeaders(res, req);
 
   if (req.method === "OPTIONS") {
     return res.status(204).end();

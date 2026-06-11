@@ -9,9 +9,7 @@ import { findICD } from "../../backend/utils/icdLookup.js";
 const MAX_FILE_SIZE = 5 * 1024 * 1024;
 const ALLOWED_MIME_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 
-// ===== Provider configuration & verification logging =====
-console.log("Gemini API key present:", !!process.env.GEMINI_API_KEY);
-console.log("Trying Gemini model:", process.env.GEMINI_MODEL || "gemini-2.5-flash");
+// ===== Provider configuration =====
 
 if (!process.env.GEMINI_API_KEY) {
   console.warn("GEMINI_API_KEY is not set in environment; Gemini will be skipped and Groq used as fallback.");
@@ -75,12 +73,23 @@ const FALLBACK_RULES = {
   },
 };
 
-function corsHeaders() {
+const ALLOWED_ORIGINS = process.env.CORS_ORIGIN
+  ? process.env.CORS_ORIGIN.split(",").map((o) => o.trim())
+  : [
+      "https://firstaid-ai-assistant.vercel.app",
+      "https://firstaid-ai-assistant-git-main-coolieobowley95s-projects.vercel.app",
+    ];
+
+function corsHeaders(req) {
+  const origin = req?.headers?.get?.("origin") || "";
+  const allowed = ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0];
   return {
-    "Access-Control-Allow-Origin": process.env.CORS_ORIGIN || "*",
+    "Access-Control-Allow-Origin": allowed,
     "Access-Control-Allow-Methods": "POST, OPTIONS",
     "Access-Control-Allow-Headers": "Content-Type",
+    "Vary": "Origin",
     "Cache-Control": "no-store",
+    "X-Content-Type-Options": "nosniff",
   };
 }
 
@@ -321,14 +330,14 @@ export default async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, {
       status: 204,
-      headers: corsHeaders(),
+      headers: corsHeaders(req),
     });
   }
 
   if (req.method !== "POST") {
     return Response.json(
       { error: "Method not allowed" },
-      { status: 405, headers: corsHeaders() }
+      { status: 405, headers: corsHeaders(req) }
     );
   }
 
@@ -338,7 +347,7 @@ export default async (req) => {
   } catch (error) {
     return Response.json(
       { error: error.message || "Invalid request" },
-      { status: error.statusCode || 400, headers: corsHeaders() }
+      { status: error.statusCode || 400, headers: corsHeaders(req) }
     );
   }
 
@@ -353,8 +362,7 @@ export default async (req) => {
   for (const provider of providers) {
     try {
       const result = await provider.fn(payload);
-      console.log(`Provider ${provider.name} succeeded.`);
-      return Response.json(result, { status: 200, headers: corsHeaders() });
+      return Response.json(result, { status: 200, headers: corsHeaders(req) });
     } catch (error) {
       console.error(`Provider ${provider.name} failed:`, error.message);
       providerErrors.push({ provider: provider.name, message: error.message });
@@ -367,7 +375,7 @@ export default async (req) => {
 
   return Response.json(getFallbackResult(payload), {
     status: 200,
-    headers: corsHeaders(),
+    headers: corsHeaders(req),
   });
 };
 
