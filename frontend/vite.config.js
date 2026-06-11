@@ -5,6 +5,10 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   plugins: [react()],
   server: {
+    // Allow importing shared utilities from the project root
+    fs: {
+      allow: ['..'],
+    },
     // Proxy /api requests to the backend server running on localhost:5001
     // This allows the frontend to call /api/analyze which gets forwarded to the backend
     // Fixes local development when not using Netlify dev

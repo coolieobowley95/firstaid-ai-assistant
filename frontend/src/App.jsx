@@ -8,46 +8,32 @@ import {
   FaFirstAid,
   FaTimes
 } from "react-icons/fa";
+import Login from "./Login.jsx";
+import { FIRST_AID_RULES } from "../../shared/firstAidRules.js";
 import "./App.css";
 
-// ======== Login Component ========
-function Login({ onLogin }) {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+// ======== Keyword helpers ========
+const INJURY_KEYWORDS = ['cut', 'bleed', 'burn', 'fracture', 'sprain'];
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    if (!email || !password) {
-      alert("Please enter email and password");
-      return;
-    }
-    onLogin();
-  };
+const INJURY_HINTS = {
+  cut: "For cuts: Clean with water, apply antiseptic, and cover with a bandage.",
+  bleed: "For bleeding: Apply firm pressure with a clean cloth, elevate if possible.",
+  burn: "For burns: Cool under running water for 10-20 minutes, cover with sterile dressing.",
+  fracture: "For fractures: Immobilize the area, apply ice, seek medical help.",
+  sprain: "For sprains: Rest, ice, compress, elevate (RICE method).",
+};
 
-  return (
-    <div className="login-container">
-      <h2>Sign in to your account</h2>
-      <form onSubmit={handleSubmit} className="login-form">
-        <label>Email address</label>
-        <input
-          type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          className="login-input"
-        />
+const KEYWORD_TO_INJURY = {
+  cut: "cut",
+  bleed: "bleeding",
+  burn: "burn",
+  fracture: "fracture",
+  sprain: "sprain",
+};
 
-        <label>Password</label>
-        <input
-          type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          className="login-input"
-        />
-
-        <button type="submit" className="login-btn">Sign In</button>
-      </form>
-    </div>
-  );
+function matchInjuryKeyword(filename) {
+  const lower = filename.toLowerCase();
+  return INJURY_KEYWORDS.find((k) => lower.includes(k)) || null;
 }
 
 // ======== FirstAid AI App Component ========
@@ -88,27 +74,7 @@ function FirstAidApp({ onSignOut }) {
     { title: "Drowning / Near-Drowning", items: ["Remove from water if safe to do so", "Check breathing and circulation", "Begin CPR if necessary", "Call emergency services immediately"] }
   ];
 
-  // ===== First-aid rules for fallback =====
-  const rules = {
-    burn: [
-      "Cool the burn under running water for 10-20 minutes",
-      "Cover with a sterile, non-stick dressing",
-      "Do NOT apply butter or toothpaste",
-      "Seek medical help if severe or blistered",
-    ],
-    cut: [
-      "Clean the wound with water",
-      "Apply antiseptic",
-      "Cover with a clean bandage",
-      "Seek medical attention if deep or bleeding persists",
-    ],
-    bleeding: [
-      "Apply firm pressure with a clean cloth",
-      "Elevate the affected limb if possible",
-      "Keep pressure until bleeding stops",
-      "Seek emergency care if heavy bleeding",
-    ],
-  };
+  const rules = FIRST_AID_RULES;
 
   // ======== Image Upload / Camera ========
   const handleInjuryDetectionClick = () => {
@@ -130,21 +96,11 @@ function FirstAidApp({ onSignOut }) {
       setCapturedImage(null);
       setAnalysisResult("");
       setInjuryHint("");
-      setSymptoms(""); // NEW: reset symptoms on new image
-      const filename = file.name.toLowerCase();
+      setSymptoms("");
       let tip = "Tip: For better detection, describe the injury in the box below or name your image after the injury. Example: cuts.png, burns.jpg";
-      const keywords = ['cut', 'bleed', 'burn', 'fracture', 'sprain'];
-      const matched = keywords.filter(k => filename.includes(k));
-      if (matched.length > 0) {
-        const injury = matched[0];
-        const hints = {
-          cut: "For cuts: Clean with water, apply antiseptic, and cover with a bandage.",
-          bleed: "For bleeding: Apply firm pressure with a clean cloth, elevate if possible.",
-          burn: "For burns: Cool under running water for 10-20 minutes, cover with sterile dressing.",
-          fracture: "For fractures: Immobilize the area, apply ice, seek medical help.",
-          sprain: "For sprains: Rest, ice, compress, elevate (RICE method)."
-        };
-        tip += "\n\nHelper hint: " + hints[injury];
+      const matched = matchInjuryKeyword(file.name);
+      if (matched) {
+        tip += "\n\nHelper hint: " + INJURY_HINTS[matched];
       }
       setTipMessage(tip);
     }
@@ -202,18 +158,10 @@ function FirstAidApp({ onSignOut }) {
     setLoading(true);
     setAnalysisResult("AI analyzing...");
 
-    const filename = imageFile ? imageFile.name.toLowerCase() : "";
-    const keywords = ['cut', 'bleed', 'burn', 'fracture', 'sprain'];
-    const matchedKeyword = keywords.find(k => filename.includes(k));
+    const filename = imageFile ? imageFile.name : "";
+    const matchedKeyword = matchInjuryKeyword(filename);
     if (matchedKeyword) {
-      const injuryMap = {
-        cut: "cut",
-        bleed: "bleeding",
-        burn: "burn",
-        fracture: "fracture",
-        sprain: "sprain"
-      };
-      setInjuryHint(`Looks like a ${injuryMap[matchedKeyword]} injury`);
+      setInjuryHint(`Looks like a ${KEYWORD_TO_INJURY[matchedKeyword]} injury`);
     } else {
       setInjuryHint("");
     }
@@ -273,13 +221,11 @@ Disclaimer: ${result.disclaimer}
     } catch (err) {
       console.error("Error analyzing image:", err);
       // Fallback to keyword-based rules
-      const fname = imageFile ? imageFile.name.toLowerCase() : 'captured.png';
-      const kws = ['cut', 'bleed', 'burn', 'fracture', 'sprain'];
-      const matched = kws.find(k => fname.includes(k));
+      const fname = imageFile ? imageFile.name : 'captured.png';
+      const matched = matchInjuryKeyword(fname);
       let injury;
       if (matched) {
-        const injuryMap = { cut: 'cut', bleed: 'bleeding', burn: 'burn', fracture: 'cut', sprain: 'cut' };
-        injury = injuryMap[matched];
+        injury = KEYWORD_TO_INJURY[matched] || 'cut';
       } else {
         const injuries = ['burn', 'cut', 'bleeding'];
         injury = injuries[Math.floor(Math.random() * injuries.length)];
