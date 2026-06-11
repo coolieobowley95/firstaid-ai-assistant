@@ -1,6 +1,8 @@
 // server.js
 import express from "express";
 import cors from "cors";
+import helmet from "helmet";
+import rateLimit from "express-rate-limit";
 import dotenv from "dotenv";
 import fetch from "node-fetch";
 import formidable from "formidable";
@@ -9,8 +11,46 @@ import fs from "fs";
 dotenv.config();
 
 const app = express();
-app.use(cors({ origin: process.env.CORS_ORIGIN || true }));
-app.use(express.json({ limit: "20mb" })); // allow large images
+
+// Security headers
+app.use(helmet());
+
+// CORS: restrict to known deployment origins (includes localhost for dev)
+const ALLOWED_ORIGINS = process.env.CORS_ORIGIN
+  ? process.env.CORS_ORIGIN.split(",").map((o) => o.trim())
+  : [
+      "https://firstaid-ai-assistant.vercel.app",
+      "https://firstaid-ai-assistant-git-main-coolieobowley95s-projects.vercel.app",
+      "http://localhost:5173",
+      "http://localhost:3000",
+    ];
+
+app.use(
+  cors({
+    origin(origin, callback) {
+      // Allow requests with no origin (server-to-server, curl, mobile apps)
+      if (!origin || ALLOWED_ORIGINS.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
+  })
+);
+
+// Rate limiting: 30 requests per minute per IP
+app.use(
+  "/api/analyze",
+  rateLimit({
+    windowMs: 60 * 1000,
+    max: 30,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: "Too many requests. Please try again later." },
+  })
+);
+
+app.use(express.json({ limit: "6mb" }));
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
@@ -177,10 +217,12 @@ Then give step-by-step first aid instructions.`,
   }
 });
 
-// ===== Test endpoint =====
-app.get("/api/test", (req, res) => {
-  res.json({ success: true, message: "Backend running with Gemini Vision" });
-});
+// ===== Test endpoint (development only) =====
+if (process.env.NODE_ENV !== "production") {
+  app.get("/api/test", (req, res) => {
+    res.json({ success: true, message: "Backend running with Gemini Vision" });
+  });
+}
 
 // ===== Start server =====
 const PORT = process.env.PORT || 5001;
